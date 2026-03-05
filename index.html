@@ -284,16 +284,44 @@
         <div class="stats-grid" id="statsGrid"></div>
 
         <!-- Tabela de ruas -->
-        <div class="table-toolbar">
-          <div class="table-section-title" style="margin-bottom:0;border-bottom:none;">Ruas Mapeadas do Município</div>
-          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
-            <div class="table-search-wrap">
-              <span class="table-search-icon">🔍</span>
-              <input type="text" id="buscaRua" placeholder="Filtrar rua..." oninput="filtrarRuas(this.value)" />
-            </div>
-            <div class="table-count" id="tableCount"><span id="tableCountNum">—</span> ruas</div>
-          </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+          <div class="table-section-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Ruas Mapeadas do Município</div>
+          <div class="table-count" id="tableCount"><span id="tableCountNum">—</span> ruas encontradas</div>
         </div>
+        <div style="position:relative;margin-bottom:0.85rem;">
+          <svg style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.45;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#002D72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            type="text"
+            id="buscaRua"
+            placeholder="Pesquisar rua pelo nome..."
+            oninput="filtrarRuas(this.value)"
+            style="
+              font-family:var(--font);font-size:0.9rem;font-weight:500;
+              width:100%;padding:0.75rem 3rem 0.75rem 2.75rem;
+              border:2px solid var(--azul-borda);border-radius:10px;
+              outline:none;color:var(--cinza-txt);background:var(--branco);
+              transition:border-color 0.2s,box-shadow 0.2s;
+              box-shadow:0 1px 6px rgba(0,45,114,0.06);
+            "
+            onfocus="this.style.borderColor='var(--azul)';this.style.boxShadow='0 0 0 3px rgba(0,45,114,0.12)'"
+            onblur="this.style.borderColor='var(--azul-borda)';this.style.boxShadow='0 1px 6px rgba(0,45,114,0.06)'"
+          />
+          <button
+            onclick="document.getElementById('buscaRua').value='';filtrarRuas('');"
+            id="btnLimparBusca"
+            title="Limpar busca"
+            style="
+              position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);
+              background:none;border:none;cursor:pointer;padding:0.25rem;
+              color:var(--cinza-aux);font-size:1rem;line-height:1;display:none;
+            "
+          >✕</button>
+        </div>
+        <script>
+          document.getElementById('buscaRua').addEventListener('input', function() {
+            document.getElementById('btnLimparBusca').style.display = this.value ? 'block' : 'none';
+          });
+        </script>
         <div class="table-wrap">
           <table>
             <thead>
@@ -359,487 +387,341 @@
   <script>
     // ========== CONFIG ==========
     const SPREADSHEET_ID = '1xZK1yriI4FUVtTF0TrUPYP05DIxGBfeNzSuxmGR8A5M';
-    const API_KEY        = 'AIzaSyDaitkJNDTZi3BMFAe9u4wV6U-DIgUS7NA';
+    const SHEET_GID      = '1301969661';
 
-    // GeoJSON URLs no GitHub
+    // GeoJSON URLs no GitHub (raw)
     const BASE_URL         = 'https://raw.githubusercontent.com/leonzordhue/dmob-viario/main/';
     const GEOJSON_RUAS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS3.geojson';
     const GEOJSON_POLS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS2.geojson';
     const EXTRAS = [
       { nome: 'Autazes',           cod: '1300300', url: BASE_URL + 'Autazes.geojson' },
       { nome: 'Careiro',           cod: '1301001', url: BASE_URL + 'Careiro.geojson' },
-      { nome: 'Careiro da Várzea', cod: '1301100', url: BASE_URL + 'Careiro_da_Varzea.geojson', nomeBusca: 'Careiro da Várzea' },
+      { nome: 'Careiro da Várzea', cod: '1301100', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
     ];
 
     // ========== STATE ==========
-    let dadosMunicipios  = {};   // { nome: { ibge, territorio, idh, pib, densidade, populacao, ... } }
+    let dadosMunicipios  = {};
     let geoJsonRuas      = null;
     let geoJsonPoligonos = null;
     let leafletMap       = null;
     let tracadoLayer     = null;
     let poligonoLayer    = null;
+    let mapaAM           = null;
+    let poligonosAMLayer = null;
+    let municipioAtivo   = null;
 
-    // ========== INIT ==========
-    document.addEventListener('DOMContentLoaded', () => {
-      carregarPlanilha();
-      carregarGeoJsons();
-    });
-
-    // ========== PLANILHA ==========
-    async function carregarPlanilha() {
+    // ========== INIT — coordenado, sem race condition ==========
+    document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('loadingBar').classList.add('show');
       try {
-        // Aba "Municípios" — sheet 1 (gid=0 geralmente)
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/indicadores_municipais!A:Z?key=${API_KEY}`;
+        await Promise.all([carregarPlanilha(), carregarGeoJsons()]);
+      } catch(e) {
+        console.error('Erro na inicialização:', e);
+      }
+      document.getElementById('loadingBar').classList.remove('show');
+      preencherSelect();   // chamado UMA única vez
+      iniciarMapaAM();     // chamado UMA única vez
+    });
+
+    // ========== PLANILHA — CSV export sem API key ==========
+    async function carregarPlanilha() {
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
         const resp = await fetch(url);
-        const data = await resp.json();
-        if (data.error) { console.error('Erro planilha:', data.error.message); return; }
-        processarPlanilha(data.values);
-      } catch (e) {
+        if (!resp.ok) { console.warn('Planilha HTTP:', resp.status); return; }
+        const text = await resp.text();
+        processarPlanilha(parseCSV(text));
+      } catch(e) {
         console.error('Erro ao carregar planilha:', e);
-      } finally {
-        document.getElementById('loadingBar').classList.remove('show');
       }
     }
 
+    function parseCSV(text) {
+      const rows = [];
+      const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const row = []; let cur = '', inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') inQ = !inQ;
+          else if (ch === ',' && !inQ) { row.push(cur.trim()); cur = ''; }
+          else cur += ch;
+        }
+        row.push(cur.trim());
+        rows.push(row);
+      }
+      return rows;
+    }
+
     function processarPlanilha(values) {
-      if (!values || values.length < 2) return;
-
-      // Detecta posição das colunas pelo cabeçalho, com fallback para posição fixa
-      // Estrutura conhecida: municipio|codigo_ibge|populacao|area_km2|densidade_demografica|extensao_viaria_km|km_por_habitante|pib_municipal|idh|regiao_imediata
-      const cab = values[0].map(c => String(c).toLowerCase().trim());
-      console.log('Cabeçalho raw:', values[0]);
-
-      // Posições fixas como fallback (baseado na estrutura real da planilha)
-      const COLS = {
-        municipio:  0,  // coluna A — sempre primeira, mesmo sem cabeçalho
-        ibge:       1,  // codigo_ibge
-        populacao:  2,  // populacao
-        territorio: 3,  // area_km2
-        densidade:  4,  // densidade_demografica
-        extensao:   5,  // extensao_viaria_km
-        kmhab:      6,  // km_por_habitante
-        pib:        7,  // pib_municipal
-        idh:        8,  // idh
-        regiao:     9,  // regiao_imediata
-      };
-
-      // Tenta detectar pelo cabeçalho, sobrescreve se encontrar
-      cab.forEach((c, i) => {
-        if (c.includes('municipio') || c.includes('município')) COLS.municipio = i;
-        else if (c.includes('ibge')) COLS.ibge = i;
-        else if (c.includes('populacao') || c.includes('população')) COLS.populacao = i;
-        else if (c.includes('area') || c.includes('área')) COLS.territorio = i;
-        else if (c.includes('dens')) COLS.densidade = i;
-        else if (c.includes('extensao') || c.includes('extensão')) COLS.extensao = i;
-        else if (c.includes('pib')) COLS.pib = i;
-        else if (c.includes('idh')) COLS.idh = i;
+      if (!values || values.length < 2) { console.warn('Planilha: dados insuficientes'); return; }
+      const norm = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const cab = values[0].map(norm);
+      console.log('Cabeçalho planilha:', values[0]);
+      const COLS = { municipio:0, ibge:1, populacao:2, territorio:3, densidade:4, extensao:5, kmhab:6, pib:7, idh:8 };
+      cab.forEach((c,i) => {
+        if (c.includes('municipio'))    COLS.municipio  = i;
+        else if (c.includes('ibge'))    COLS.ibge       = i;
+        else if (c.includes('populac')) COLS.populacao  = i;
+        else if (c.includes('area'))    COLS.territorio = i;
+        else if (c.includes('dens'))    COLS.densidade  = i;
+        else if (c.includes('extens'))  COLS.extensao   = i;
+        else if (c.includes('pib'))     COLS.pib        = i;
+        else if (c.includes('idh'))     COLS.idh        = i;
       });
-
-      console.log('Colunas detectadas:', COLS);
-
-      const linhas = values.slice(1);
-      linhas.forEach(linha => {
-        const nome = String(linha[COLS.municipio] || '').trim();
+      values.slice(1).forEach(l => {
+        const nome = String(l[COLS.municipio]||'').trim();
         if (!nome) return;
         dadosMunicipios[nome] = {
-          ibge:       String(linha[COLS.ibge]       || '').trim(),
-          populacao:  String(linha[COLS.populacao]  || '').trim(),
-          territorio: String(linha[COLS.territorio] || '').trim(),
-          densidade:  String(linha[COLS.densidade]  || '').trim(),
-          extensao:   String(linha[COLS.extensao]   || '').trim(),
-          pib:        String(linha[COLS.pib]        || '').trim(),
-          idh:        String(linha[COLS.idh]        || '').trim(),
+          ibge:       String(l[COLS.ibge]       ||'').trim(),
+          populacao:  String(l[COLS.populacao]  ||'').trim(),
+          territorio: String(l[COLS.territorio] ||'').trim(),
+          densidade:  String(l[COLS.densidade]  ||'').trim(),
+          extensao:   String(l[COLS.extensao]   ||'').trim(),
+          pib:        String(l[COLS.pib]        ||'').trim(),
+          idh:        String(l[COLS.idh]        ||'').trim(),
         };
       });
-
-      console.log('✅ Planilha: ' + Object.keys(dadosMunicipios).length + ' municípios carregados');
-      console.log('Exemplo:', Object.keys(dadosMunicipios)[0], dadosMunicipios[Object.keys(dadosMunicipios)[0]]);
-      if (geoJsonPoligonos) preencherSelect();
-      else setTimeout(preencherSelect, 2000);
+      console.log(`✅ Planilha: ${Object.keys(dadosMunicipios).length} municípios`);
     }
 
     // ========== GEOJSON ==========
     async function carregarGeoJsons() {
       try {
-        const [r1, r2] = await Promise.all([
-          fetch(GEOJSON_RUAS_URL),
-          fetch(GEOJSON_POLS_URL)
-        ]);
+        const [r1, r2] = await Promise.all([fetch(GEOJSON_RUAS_URL), fetch(GEOJSON_POLS_URL)]);
+        if (r1.ok) { geoJsonRuas = await r1.json(); console.log(`✅ Ruas: ${geoJsonRuas.features.length}`); }
+        else console.warn('⚠️ Ruas GeoJSON falhou');
+        if (r2.ok) { geoJsonPoligonos = await r2.json(); console.log(`✅ Polígonos: ${geoJsonPoligonos.features.length}`); }
+        else console.warn('⚠️ Polígonos GeoJSON falhou');
 
-        if (r1.ok) {
-          geoJsonRuas = await r1.json();
-          console.log(`✅ Ruas GeoJSON: ${geoJsonRuas.features.length} features`);
-        } else console.warn('⚠️ Ruas GeoJSON não carregado');
-
-        if (r2.ok) {
-          geoJsonPoligonos = await r2.json();
-          console.log(`✅ Polígonos GeoJSON: ${geoJsonPoligonos.features.length} features`);
-        } else console.warn('⚠️ Polígonos GeoJSON não carregado');
-
-        // Carrega municípios extras (Autazes, Careiro, Careiro da Várzea)
         for (const extra of EXTRAS) {
           try {
             const r = await fetch(extra.url);
             if (!r.ok) continue;
             const data = await r.json();
-            // Busca polígono real do IBGE
             let polygon = null;
             try {
-              const ibgeUrl = `https://servicodados.ibge.gov.br/api/v3/malhas/municipios/${extra.cod}?formato=application/vnd.geo+json&qualidade=minima`;
-              const ri = await fetch(ibgeUrl);
+              const ri = await fetch(`https://servicodados.ibge.gov.br/api/v3/malhas/municipios/${extra.cod}?formato=application/vnd.geo+json&qualidade=minima`);
               if (ri.ok) {
-                const ibgeData = await ri.json();
-                if (ibgeData.features && ibgeData.features[0]) {
-                  polygon = { ...ibgeData.features[0], properties: { name: extra.nome } };
-                  console.log(`✅ Polígono IBGE: ${extra.nome}`);
+                const ib = await ri.json();
+                if (ib.features?.[0]) {
+                  polygon = { ...ib.features[0], properties:{ name: extra.nome } };
+                  console.log(`✅ IBGE polygon: ${extra.nome} (${ib.features[0].geometry.type})`);
                 }
               }
-            } catch(e) { console.warn(`⚠️ Polígono IBGE falhou para ${extra.nome}, usando bbox`); }
-            // Fallback: bbox se IBGE falhar
+            } catch(e) { console.warn(`⚠️ IBGE falhou: ${extra.nome}`); }
             if (!polygon) polygon = criarPoligonoBbox(extra.nome, data.features);
-            if (geoJsonPoligonos) geoJsonPoligonos.features.push(polygon);
-            if (geoJsonRuas) geoJsonRuas.features.push(...data.features);
+            geoJsonPoligonos?.features.push(polygon);
+            geoJsonRuas?.features.push(...data.features);
             console.log(`✅ Extra: ${extra.nome} — ${data.features.length} ruas`);
-          } catch(e) { console.warn(`⚠️ Erro ao carregar ${extra.nome}:`, e.message); }
+          } catch(e) { console.warn(`⚠️ Erro extra ${extra.nome}:`, e.message); }
         }
-
-        // Após carregar tudo, inicializa select e mapa AM
-        if (Object.keys(dadosMunicipios).length > 0) preencherSelect();
-
       } catch(e) {
-        console.warn('⚠️ Erro ao carregar GeoJSON:', e.message);
+        console.warn('⚠️ Erro GeoJSON:', e.message);
       }
     }
 
-    function criarPoligonoBbox(nome, features, margem = 0.01) {
-      const coords = features.flatMap(f => f.geometry.coordinates);
-      const xs = coords.map(c => c[0]);
-      const ys = coords.map(c => c[1]);
-      const minx = Math.min(...xs) - margem, maxx = Math.max(...xs) + margem;
-      const miny = Math.min(...ys) - margem, maxy = Math.max(...ys) + margem;
-      return {
-        type: 'Feature',
-        properties: { name: nome },
-        geometry: { type: 'Polygon', coordinates: [[[minx,miny],[maxx,miny],[maxx,maxy],[minx,maxy],[minx,miny]]] }
-      };
+    function criarPoligonoBbox(nome, features, mg=0.01) {
+      const coords = features.flatMap(f=>f.geometry.coordinates);
+      const xs=coords.map(c=>c[0]), ys=coords.map(c=>c[1]);
+      const [x0,x1,y0,y1] = [Math.min(...xs)-mg,Math.max(...xs)+mg,Math.min(...ys)-mg,Math.max(...ys)+mg];
+      return { type:'Feature', properties:{name:nome}, geometry:{type:'Polygon',coordinates:[[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]]]} };
     }
 
     // ========== SELECT + MAPA AM ==========
-    let mapaAM = null;
-    let poligonosAMLayer = null;
-    let municipioAtivo = null;
-
-    let selectPreenchido = false;
     function preencherSelect() {
-      if (selectPreenchido) { if (!mapaAM) iniciarMapaAM(); return; }
-      selectPreenchido = true;
-      const municipiosPlanilha = Object.keys(dadosMunicipios).sort();
-      const municipiosGeo = geoJsonPoligonos
-        ? geoJsonPoligonos.features.map(f => f.properties.name).filter(Boolean).sort()
-        : [];
-      const todos = [...new Set([...municipiosGeo, ...municipiosPlanilha])].sort();
-
-      const select = document.getElementById('selectMunicipio');
-      select.innerHTML = '<option value="">Ou busque pelo nome...</option>';
-      todos.forEach(nome => {
-        const opt = document.createElement('option');
-        opt.value = nome; opt.textContent = nome;
-        select.appendChild(opt);
-      });
-      select.addEventListener('change', e => {
-        if (e.target.value) selecionarMunicipio(e.target.value);
-      });
-
-      // Inicializa mapa do Amazonas
-      iniciarMapaAM();
+      const geo = geoJsonPoligonos ? geoJsonPoligonos.features.map(f=>f.properties.name).filter(Boolean) : [];
+      const todos = [...new Set([...geo, ...Object.keys(dadosMunicipios)])].sort();
+      const sel = document.getElementById('selectMunicipio');
+      sel.innerHTML = '<option value="">Ou busque pelo nome...</option>';
+      todos.forEach(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+      sel.addEventListener('change', e => { if(e.target.value) selecionarMunicipio(e.target.value); });
+      console.log(`✅ Select: ${todos.length} municípios`);
     }
 
     function iniciarMapaAM() {
-      if (!geoJsonPoligonos) return;
-      if (mapaAM) return; // já inicializado, não reinicializa
-      const overlay = document.getElementById('mapaAmOverlay');
+      if (!geoJsonPoligonos) { console.warn('⚠️ Sem polígonos para o mapa AM'); return; }
+      if (mapaAM) return;  // guard absoluto — nunca dupla inicialização
 
-      mapaAM = L.map('mapa-am', {
-        center: [-4.5, -63.5], zoom: 5,
-        zoomControl: true, attributionControl: false
-      });
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18, opacity: 0.4
-      }).addTo(mapaAM);
+      mapaAM = L.map('mapa-am', { center:[-4.5,-63.5], zoom:5, zoomControl:true, attributionControl:false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18, opacity:0.4 }).addTo(mapaAM);
 
       poligonosAMLayer = L.geoJSON(geoJsonPoligonos, {
         style: estiloPadrao,
         onEachFeature: (feature, layer) => {
-          const nome = feature.properties.name || '';
+          const nome = feature.properties.name||'';
           if (!nome) return;
-
           layer.on('mouseover', function() {
-            if (municipioAtivo !== nome) {
-              this.setStyle({ fillColor: '#002D72', fillOpacity: 0.25, weight: 2, color: '#002D72' });
-            }
-            this.bindTooltip(`<div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:0.82rem;color:#002D72;">${nome}</div>`, {
-              sticky: true, className: 'municipio-tooltip'
-            }).openTooltip();
+            if (municipioAtivo!==nome) this.setStyle({fillColor:'#002D72',fillOpacity:0.25,weight:2,color:'#002D72'});
+            this.bindTooltip(`<div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:0.82rem;color:#002D72;">${nome}</div>`,
+              {sticky:true,className:'municipio-tooltip'}).openTooltip();
           });
-
-          layer.on('mouseout', function() {
-            if (municipioAtivo !== nome) {
-              poligonosAMLayer.resetStyle(this);
-            }
-          });
-
-          layer.on('click', function() {
-            selecionarMunicipio(nome);
-          });
+          layer.on('mouseout', function() { if(municipioAtivo!==nome) poligonosAMLayer.resetStyle(this); });
+          layer.on('click',    function() { selecionarMunicipio(nome); });
         }
       }).addTo(mapaAM);
 
-      overlay.classList.add('hidden');
+      document.getElementById('mapaAmOverlay').classList.add('hidden');
+      console.log('✅ Mapa AM inicializado');
     }
 
-    function estiloPadrao() {
-      return { color: '#002D72', weight: 1.5, opacity: 0.7, fillColor: '#EBF0FA', fillOpacity: 0.5 };
-    }
-
-    function estiloAtivo() {
-      return { color: '#002D72', weight: 2.5, opacity: 1, fillColor: '#F5A623', fillOpacity: 0.4 };
-    }
+    const estiloPadrao = () => ({ color:'#002D72', weight:1.5, opacity:0.7, fillColor:'#EBF0FA', fillOpacity:0.5 });
+    const estiloAtivo  = () => ({ color:'#002D72', weight:2.5, opacity:1,   fillColor:'#F5A623', fillOpacity:0.4 });
 
     function selecionarMunicipio(nome) {
-      // Atualiza estilo no mapa AM
       if (poligonosAMLayer) {
-        poligonosAMLayer.eachLayer(layer => {
-          const n = layer.feature?.properties?.name;
-          if (n === nome) {
-            layer.setStyle(estiloAtivo());
-            municipioAtivo = nome;
-          } else {
-            poligonosAMLayer.resetStyle(layer);
-          }
+        poligonosAMLayer.eachLayer(l => {
+          l.setStyle(l.feature?.properties?.name===nome ? estiloAtivo() : estiloPadrao());
         });
+        municipioAtivo = nome;
       }
-      // Atualiza dropdown
-      const sel = document.getElementById('selectMunicipio');
-      sel.value = nome;
-      // Mostra informações
+      document.getElementById('selectMunicipio').value = nome;
       mostrarMunicipio(nome);
     }
 
-    // ========== SPATIAL: pegar ruas do município ==========
-    function pointInPolygon(point, polygon) {
-      const x = point[0], y = point[1];
-      let inside = false;
-      let j = polygon.length - 1;
-      for (let i = 0; i < polygon.length; i++) {
-        const xi = polygon[i][0], yi = polygon[i][1];
-        const xj = polygon[j][0], yj = polygon[j][1];
-        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
-        j = i;
+    // ========== SPATIAL ==========
+    function pointInPolygon(point, ring) {
+      const [x,y] = point; let inside=false, j=ring.length-1;
+      for (let i=0;i<ring.length;i++) {
+        const [xi,yi]=ring[i],[xj,yj]=ring[j];
+        if (((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+        j=i;
       }
       return inside;
     }
 
+    function getOuterRing(feature) {
+      const g = feature.geometry;
+      if (!g) return null;
+      if (g.type==='Polygon') return g.coordinates[0];
+      if (g.type==='MultiPolygon') {
+        // Pega o polígono de maior bbox
+        return g.coordinates.reduce((best,poly) => {
+          const r=poly[0];
+          const xs=r.map(c=>c[0]),ys=r.map(c=>c[1]);
+          const a=(Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys));
+          const bxs=best.map(c=>c[0]),bys=best.map(c=>c[1]);
+          const ba=(Math.max(...bxs)-Math.min(...bxs))*(Math.max(...bys)-Math.min(...bys));
+          return a>ba?r:best;
+        }, g.coordinates[0][0]);
+      }
+      return null;
+    }
+
     function getRuasMunicipio(nomeMunicipio) {
-      if (!geoJsonRuas || !geoJsonPoligonos) return [];
-
-      // Busca polígono do município
-      const polFeature = geoJsonPoligonos.features.find(f =>
-        (f.properties.name || '').trim().toLowerCase() === nomeMunicipio.trim().toLowerCase()
+      if (!geoJsonRuas||!geoJsonPoligonos) return [];
+      const polF = geoJsonPoligonos.features.find(f =>
+        (f.properties.name||'').trim().toLowerCase()===nomeMunicipio.trim().toLowerCase()
       );
-      if (!polFeature) return [];
-
-      const polygon = polFeature.geometry.coordinates[0];
-      const minx = Math.min(...polygon.map(c=>c[0]));
-      const maxx = Math.max(...polygon.map(c=>c[0]));
-      const miny = Math.min(...polygon.map(c=>c[1]));
-      const maxy = Math.max(...polygon.map(c=>c[1]));
-
-      return geoJsonRuas.features.filter(rua => {
-        const coords = rua.geometry.coordinates;
-        const mid = coords[Math.floor(coords.length / 2)];
-        const px = mid[0], py = mid[1];
-        if (px < minx || px > maxx || py < miny || py > maxy) return false;
-        return pointInPolygon([px, py], polygon);
+      if (!polF) return [];
+      const ring = getOuterRing(polF);
+      if (!ring) return [];
+      const xs=ring.map(c=>c[0]),ys=ring.map(c=>c[1]);
+      const [x0,x1,y0,y1]=[Math.min(...xs),Math.max(...xs),Math.min(...ys),Math.max(...ys)];
+      return geoJsonRuas.features.filter(rua=>{
+        const coords=rua.geometry?.coordinates;
+        if (!coords?.length) return false;
+        const [px,py]=coords[Math.floor(coords.length/2)];
+        if (px<x0||px>x1||py<y0||py>y1) return false;
+        return pointInPolygon([px,py],ring);
       });
     }
 
     // ========== EXIBIR MUNICÍPIO ==========
     function mostrarMunicipio(nome) {
-      // Match: direto → uppercase → case-insensitive → sem acentos
-      const _buscarDados = (n) => {
-        if (dadosMunicipios[n]) return dadosMunicipios[n];
-        if (dadosMunicipios[n.toUpperCase()]) return dadosMunicipios[n.toUpperCase()];
-        const chave = Object.keys(dadosMunicipios).find(k => 
-          k.toUpperCase() === n.toUpperCase() ||
-          k.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase() === n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+      const dados = (() => {
+        if (dadosMunicipios[nome]) return dadosMunicipios[nome];
+        const k = Object.keys(dadosMunicipios).find(k=>
+          k.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===
+          nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
         );
-        return chave ? dadosMunicipios[chave] : {};
-      };
-      const dados = _buscarDados(nome);
-      const ruas  = getRuasMunicipio(nome);
+        return k ? dadosMunicipios[k] : {};
+      })();
 
-      // Calcular extensão total
-      let extTotalM = 0;
-      ruas.forEach(r => {
-        const desc = r.properties.description || '';
-        const m = desc.match(/([\d.,]+)\s*m/i);
-        if (m) extTotalM += parseFloat(m[1].replace(',','.'));
-      });
-      const extTotalKm = (extTotalM / 1000).toFixed(2);
+      const ruas = getRuasMunicipio(nome);
+      let extM = 0;
+      ruas.forEach(r=>{const m=(r.properties.description||'').match(/([\d.,]+)\s*m/i);if(m)extM+=parseFloat(m[1].replace(',','.'));});
+      const extKm = (extM/1000).toFixed(2);
 
-      // Header
       document.getElementById('resultadoTitulo').textContent = nome;
       document.getElementById('munNome').textContent = nome;
       document.getElementById('munIbge').textContent = dados.ibge ? `Código IBGE: ${dados.ibge}` : 'Código IBGE: não informado';
 
-      // Stats
-      const nd = (v, suf='') => v ? `${v}${suf}` : '<span class="nd">—</span>';
+      const nd = (v,s='') => v ? `${v}${s}` : '<span class="nd">—</span>';
       document.getElementById('statsGrid').innerHTML = `
-        <div class="stat-box">
-          <div class="stat-box-value">${ruas.length}</div>
-          <div class="stat-box-label">Ruas Mapeadas</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-value">${extTotalKm}</div>
-          <div class="stat-box-label">Extensão Total (km)</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-value sm">${nd(dados.territorio, ' km²')}</div>
-          <div class="stat-box-label">Território Municipal</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-value sm">${nd(dados.populacao)}</div>
-          <div class="stat-box-label">Habitantes</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-value sm">${nd(dados.densidade, ' hab/km²')}</div>
-          <div class="stat-box-label">Densidade Demográfica</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-value sm">${nd(dados.idh)}</div>
-          <div class="stat-box-label">IDH</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-value sm">${nd(dados.pib)}</div>
-          <div class="stat-box-label">PIB</div>
-        </div>
+        <div class="stat-box"><div class="stat-box-value">${ruas.length}</div><div class="stat-box-label">Ruas Mapeadas</div></div>
+        <div class="stat-box"><div class="stat-box-value">${extKm}</div><div class="stat-box-label">Extensão Total (km)</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.territorio,' km²')}</div><div class="stat-box-label">Território Municipal</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.populacao)}</div><div class="stat-box-label">Habitantes</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.densidade,' hab/km²')}</div><div class="stat-box-label">Densidade Demográfica</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.idh)}</div><div class="stat-box-label">IDH</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.pib)}</div><div class="stat-box-label">PIB</div></div>
       `;
 
-      // Tabela de ruas
-      const ruasOrdenadas = [...ruas].sort((a, b) => {
-        const na = (a.properties.name || '').toLowerCase();
-        const nb = (b.properties.name || '').toLowerCase();
-        return na.localeCompare(nb);
-      });
-
       document.getElementById('buscaRua').value = '';
-      const ruasHTML = ruasOrdenadas.map((r, i) => {
-        const nome_rua = r.properties.name || 'Sem nome';
-        const desc = r.properties.description || '';
-        const m = desc.match(/([\d.,]+)\s*m/i);
-        const ext = m ? `${parseFloat(m[1].replace(',','.')).toFixed(0)} m` : '—';
-        return `<tr data-nome="${nome_rua.toLowerCase()}">
-          <td style="color:var(--cinza-aux);font-weight:400;">${i+1}</td>
-          <td>${nome_rua}</td>
-          <td><span class="badge-ext">${ext}</span></td>
-        </tr>`;
+      const ord = [...ruas].sort((a,b)=>(a.properties.name||'').localeCompare(b.properties.name||''));
+      document.getElementById('ruasTbody').innerHTML = ord.map((r,i)=>{
+        const n=r.properties.name||'Sem nome';
+        const m=(r.properties.description||'').match(/([\d.,]+)\s*m/i);
+        const e=m?`${parseFloat(m[1].replace(',','.')).toFixed(0)} m`:'—';
+        return `<tr data-nome="${n.toLowerCase()}"><td style="color:var(--cinza-aux);font-weight:400;">${i+1}</td><td>${n}</td><td><span class="badge-ext">${e}</span></td></tr>`;
       }).join('');
-      document.getElementById('ruasTbody').innerHTML = ruasHTML;
-      document.getElementById('tableCountNum').textContent = ruasOrdenadas.length;
-
-      // Mapa
+      document.getElementById('tableCountNum').textContent = ord.length;
       document.getElementById('mapBadgeRuas').textContent = `${ruas.length} ruas`;
-      document.getElementById('mapBadgeExt').textContent = `${extTotalKm} km`;
+      document.getElementById('mapBadgeExt').textContent  = `${extKm} km`;
       renderizarMapa(nome, ruas);
 
       const card = document.getElementById('resultadoCard');
       card.classList.add('show');
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      card.scrollIntoView({behavior:'smooth',block:'start'});
     }
 
-    // ========== MAPA ==========
+    // ========== MAPA VIÁRIO ==========
     function renderizarMapa(nomeMunicipio, ruas) {
-      const overlay = document.getElementById('mapLoadingOverlay');
-      overlay.classList.remove('hidden');
+      document.getElementById('mapLoadingOverlay').classList.remove('hidden');
+      if (leafletMap) { leafletMap.remove(); leafletMap=null; tracadoLayer=null; poligonoLayer=null; }
 
-      if (leafletMap) { leafletMap.remove(); leafletMap = null; tracadoLayer = null; poligonoLayer = null; }
+      setTimeout(()=>{
+        leafletMap = L.map('leaflet-map',{center:[-3.5,-62],zoom:7,zoomControl:true,attributionControl:false});
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(leafletMap);
 
-      setTimeout(() => {
-        leafletMap = L.map('leaflet-map', {
-          center: [-3.5, -62.0], zoom: 7,
-          zoomControl: true, attributionControl: false
-        });
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletMap);
-
-        // Polígono do município
-        if (geoJsonPoligonos) {
-          const polFeature = geoJsonPoligonos.features.find(f =>
-            (f.properties.name || '').trim().toLowerCase() === nomeMunicipio.trim().toLowerCase()
-          );
-          if (polFeature) {
-            poligonoLayer = L.geoJSON(polFeature, {
-              style: { color: '#002D72', weight: 2, opacity: 0.6, fillColor: '#002D72', fillOpacity: 0.04 }
-            }).addTo(leafletMap);
-          }
+        const polF = geoJsonPoligonos?.features.find(f=>(f.properties.name||'').trim().toLowerCase()===nomeMunicipio.trim().toLowerCase());
+        if (polF) {
+          poligonoLayer = L.geoJSON(polF,{style:{color:'#002D72',weight:2,opacity:0.6,fillColor:'#002D72',fillOpacity:0.04}}).addTo(leafletMap);
         }
 
-        // Ruas
-        if (ruas.length > 0) {
-          const fc = { type: 'FeatureCollection', features: ruas };
-          tracadoLayer = L.geoJSON(fc, {
-            style: { color: '#F5A623', weight: 3, opacity: 0.9, lineJoin: 'round', lineCap: 'round' },
-            onEachFeature: (feature, layer) => {
-              const nome_rua = feature.properties.name || 'Sem nome';
-              const desc = feature.properties.description || '';
-              layer.bindPopup(`
-                <div style="font-family:'Outfit',sans-serif;font-size:0.82rem;">
-                  <div style="font-weight:800;color:#002D72;margin-bottom:4px;">${nome_rua}</div>
-                  <div style="color:#4A5568;">${desc}</div>
-                </div>
-              `, { maxWidth: 220 });
+        if (ruas.length>0) {
+          tracadoLayer = L.geoJSON({type:'FeatureCollection',features:ruas},{
+            style:{color:'#F5A623',weight:3,opacity:0.9,lineJoin:'round',lineCap:'round'},
+            onEachFeature:(feature,layer)=>{
+              const n=feature.properties.name||'Sem nome', d=feature.properties.description||'';
+              layer.bindPopup(`<div style="font-family:'Outfit',sans-serif;font-size:0.82rem;"><div style="font-weight:800;color:#002D72;margin-bottom:4px;">${n}</div><div style="color:#4A5568;">${d}</div></div>`,{maxWidth:220});
             }
           }).addTo(leafletMap);
-          leafletMap.fitBounds(tracadoLayer.getBounds(), { padding: [30, 30] });
+          leafletMap.fitBounds(tracadoLayer.getBounds(),{padding:[30,30]});
         } else if (poligonoLayer) {
-          leafletMap.fitBounds(poligonoLayer.getBounds(), { padding: [30, 30] });
+          leafletMap.fitBounds(poligonoLayer.getBounds(),{padding:[30,30]});
         }
-
-        overlay.classList.add('hidden');
-      }, 80);
+        document.getElementById('mapLoadingOverlay').classList.add('hidden');
+      },80);
     }
 
     function filtrarRuas(termo) {
-      const t = termo.toLowerCase().trim();
-      const rows = document.querySelectorAll('#ruasTbody tr');
-      let visiveis = 0;
-      rows.forEach(row => {
-        const nome = row.getAttribute('data-nome') || '';
-        if (!t || nome.includes(t)) {
-          row.classList.remove('hidden-row');
-          visiveis++;
-        } else {
-          row.classList.add('hidden-row');
-        }
+      const t=termo.toLowerCase().trim(); let v=0;
+      document.querySelectorAll('#ruasTbody tr').forEach(row=>{
+        const show=!t||(row.getAttribute('data-nome')||'').includes(t);
+        row.classList.toggle('hidden-row',!show);
+        if(show)v++;
       });
-      document.getElementById('tableCountNum').textContent = visiveis;
+      document.getElementById('tableCountNum').textContent=v;
     }
 
     function centralizarMapa() {
       if (!leafletMap) return;
-      if (tracadoLayer) leafletMap.fitBounds(tracadoLayer.getBounds(), { padding: [30, 30] });
-      else if (poligonoLayer) leafletMap.fitBounds(poligonoLayer.getBounds(), { padding: [30, 30] });
+      if (tracadoLayer) leafletMap.fitBounds(tracadoLayer.getBounds(),{padding:[30,30]});
+      else if (poligonoLayer) leafletMap.fitBounds(poligonoLayer.getBounds(),{padding:[30,30]});
     }
-
-    // ========== FALLBACK: Se planilha não carregou, init mapa AM ==========
-    setTimeout(() => {
-      const sel = document.getElementById('selectMunicipio');
-      if (sel.options.length <= 1 && geoJsonPoligonos) {
-        preencherSelect();
-      }
-    }, 4000);
   </script>
 
 </body>
