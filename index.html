@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viário Municipal — DMOB/SEINFRA-AM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --azul:        #002D72;
+      --azul-hover:  #00348A;
+      --azul-claro:  #EBF0FA;
+      --azul-borda:  #C4D0E8;
+      --amarelo:     #F5A623;
+      --amarelo-cl:  #FEF3DC;
+      --amarelo-brd: #F5C878;
+      --verde:       #007B3E;
+      --verde-cl:    #E6F4ED;
+      --cinza-txt:   #1A2540;
+      --cinza-med:   #4A5568;
+      --cinza-aux:   #8896A8;
+      --cinza-bg:    #F5F7FB;
+      --borda:       #E0E6F0;
+      --branco:      #FFFFFF;
+      --font:        'Outfit', sans-serif;
+      --shadow:      0 2px 16px rgba(0,45,114,0.09), 0 0 0 1px var(--borda);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--cinza-bg); color: var(--cinza-txt); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+    ::selection { background: rgba(0,45,114,0.14); }
+
+    /* TOPBAR */
+    .topbar { background: var(--azul); padding: 0.5rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-left { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.55); font-weight: 500; }
+    .topbar-right { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--amarelo); display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amarelo); box-shadow: 0 0 8px var(--amarelo); animation: pulse 2s ease-in-out infinite; }
+
+    /* HEADER */
+    .site-header { background: var(--branco); border-bottom: 2px solid var(--azul); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 20px rgba(0,45,114,0.08); }
+    .header-brand { display: flex; align-items: center; gap: 0.9rem; }
+    .brand-escudo { width: 44px; height: 44px; border-radius: 8px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+    .brand-sup { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cinza-aux); }
+    .brand-name { font-size: 1.05rem; font-weight: 800; color: var(--azul); }
+    .brand-name span { color: var(--amarelo); }
+    .header-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--azul); background: var(--azul-claro); border: 1.5px solid var(--azul-borda); padding: 0.4em 1em; border-radius: 100px; }
+    @media (max-width: 600px) { .header-badge { display: none; } }
+
+    /* HERO */
+    .page-hero { background: var(--azul); padding: 2.5rem 2rem; position: relative; overflow: hidden; }
+    .page-hero::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-50deg, transparent, transparent 48px, rgba(255,255,255,0.02) 48px, rgba(255,255,255,0.02) 49px); }
+    .page-hero-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--amarelo), transparent); }
+    .page-hero-inner { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; }
+    .page-hero-eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--amarelo); margin-bottom: 0.6rem; }
+    .page-hero-title { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 900; color: var(--branco); letter-spacing: -0.02em; line-height: 1.1; }
+    .page-hero-sub { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-top: 0.5rem; }
+    .hero-wave { overflow: hidden; line-height: 0; }
+    .hero-wave svg { display: block; width: 100%; }
+
+    /* MAIN */
+    .main-wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+
+    /* CARDS */
+    .card { background: var(--branco); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 1.5rem; }
+    .card-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--borda); background: var(--azul-claro); display: flex; align-items: center; gap: 0.75rem; }
+    .card-header-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .card-header-title { font-size: 0.95rem; font-weight: 700; color: var(--azul); }
+    .card-body { padding: 1.75rem; }
+
+    /* FORM */
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--cinza-med); }
+    select {
+      font-family: var(--font); font-size: 0.92rem; font-weight: 500;
+      color: var(--cinza-txt); background: var(--branco);
+      border: 1.5px solid var(--borda); border-radius: 8px;
+      padding: 0.7rem 2.5rem 0.7rem 1rem; outline: none; cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238896A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 1rem center; width: 100%;
+    }
+    select:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(0,45,114,0.1); }
+
+    /* LOADING */
+    .loading-bar { display: none; align-items: center; gap: 0.75rem; padding: 1rem 1.75rem; background: var(--azul-claro); border-top: 1px solid var(--azul-borda); font-size: 0.85rem; color: var(--azul); font-weight: 600; }
+    .loading-bar.show { display: flex; }
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--azul-borda); border-top-color: var(--azul); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+
+    /* RESULTADO */
+    .resultado-card { display: none; }
+    .resultado-card.show { display: block; }
+
+    /* HEADER DO MUNICÍPIO */
+    .mun-header {
+      background: linear-gradient(135deg, var(--azul) 0%, #003d99 100%);
+      border-radius: 10px;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .mun-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(-45deg, transparent, transparent 30px, rgba(255,255,255,0.015) 30px, rgba(255,255,255,0.015) 31px);
+    }
+    .mun-header-inner { position: relative; z-index: 1; }
+    .mun-nome { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 900; color: #fff; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+    .mun-ibge { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-box { background: var(--azul-claro); border: 1px solid var(--azul-borda); border-radius: 10px; padding: 1.1rem 1.25rem; text-align: center; }
+    .stat-box-value { font-size: 1.5rem; font-weight: 900; color: var(--azul); letter-spacing: -0.03em; line-height: 1; }
+    .stat-box-value.sm { font-size: 1.1rem; }
+    .stat-box-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cinza-aux); margin-top: 0.3rem; }
+
+    /* TABELA */
+    .table-section-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cinza-med); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--borda); }
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--borda); margin-bottom: 1.5rem; max-height: 360px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead { background: var(--azul); position: sticky; top: 0; z-index: 2; }
+    thead th { padding: 0.8rem 1rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.9); text-align: left; }
+    tbody tr { border-bottom: 1px solid var(--borda); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--azul-claro); }
+    tbody td { padding: 0.75rem 1rem; color: var(--cinza-txt); }
+    tbody td:first-child { font-weight: 600; color: var(--azul); }
+    .badge-ext { display: inline-block; background: var(--azul-claro); border: 1px solid var(--azul-borda); color: var(--azul); font-size: 0.68rem; font-weight: 700; padding: 0.15em 0.6em; border-radius: 100px; }
+
+    /* MAPA */
+    .map-section { border-top: 1px solid var(--borda); padding-top: 1.5rem; }
+    .map-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cinza-med); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+    .map-wrapper { border-radius: 12px; overflow: hidden; border: 1.5px solid var(--borda); box-shadow: 0 4px 20px rgba(0,45,114,0.08); position: relative; }
+    .map-toolbar { background: var(--branco); border-bottom: 1px solid var(--borda); padding: 0.65rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .map-toolbar-info { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .map-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.25em 0.8em; border-radius: 100px; }
+    .map-badge.azul { background: var(--azul); color: #fff; }
+    .map-badge.verde { background: var(--verde-cl); border: 1px solid rgba(0,123,62,0.25); color: var(--verde); }
+    .map-toolbar-actions { display: flex; gap: 0.45rem; }
+    .map-action-btn { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font); font-size: 0.72rem; font-weight: 700; color: var(--azul); text-decoration: none; background: var(--azul-claro); border: 1.5px solid var(--azul-borda); padding: 0.38em 0.85em; border-radius: 100px; cursor: pointer; transition: background 0.15s, transform 0.15s; white-space: nowrap; }
+    .map-action-btn:hover { background: var(--azul-borda); transform: translateY(-1px); }
+    #leaflet-map { width: 100%; height: 480px; background: #e8eef5; }
+    .map-legend { background: var(--branco); border-top: 1px solid var(--borda); padding: 0.55rem 1rem; display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; font-size: 0.68rem; color: var(--cinza-med); font-weight: 600; }
+    .legend-line { width: 20px; height: 3px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+    .map-loading-overlay { position: absolute; inset: 0; background: rgba(245,247,251,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; z-index: 999; }
+    .map-loading-overlay.hidden { display: none; }
+    .map-loading-text { font-size: 0.85rem; font-weight: 600; color: var(--azul); }
+
+    /* DADOS NÃO DISPONÍVEIS */
+    .nd { color: var(--cinza-aux); font-style: italic; }
+
+    /* FOOTER */
+    .site-footer { background: var(--branco); border-top: 2px solid var(--azul); padding: 1.75rem 2rem; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    .footer-brand { display: flex; align-items: center; gap: 0.75rem; }
+    .footer-icon { width: 34px; height: 34px; border-radius: 6px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .footer-name { font-size: 0.9rem; font-weight: 800; color: var(--azul); }
+    .footer-name span { color: var(--amarelo); }
+    .footer-sub { font-size: 0.65rem; color: var(--cinza-aux); }
+    .footer-copy { font-size: 0.68rem; color: var(--cinza-aux); }
+
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">Governo do Estado do Amazonas</div>
+    <div class="topbar-right"><div class="topbar-dot"></div>Sistema Ativo</div>
+  </div>
+
+  <header class="site-header">
+    <div class="header-brand">
+      <div class="brand-escudo">🏙️</div>
+      <div>
+        <div class="brand-sup">Secretaria de Estado de Infraestrutura</div>
+        <div class="brand-name">SEINFRA<span>/AM</span></div>
+      </div>
+    </div>
+    <div class="header-badge">Viário Municipal</div>
+  </header>
+
+  <div class="page-hero">
+    <div class="page-hero-accent"></div>
+    <div class="page-hero-inner">
+      <div class="page-hero-eyebrow">🏙️ DMOB — Departamento de Mobilidade</div>
+      <div class="page-hero-title">Sistemas Viários Municipais</div>
+      <div class="page-hero-sub">Consulta de municípios, ruas e traçados — SEINFRA/AM · 2026</div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,28 C360,46 720,8 1080,28 C1260,38 1380,20 1440,28 L1440,40 L0,40 Z" fill="#F5F7FB"/>
+    </svg>
+  </div>
+
+  <div class="main-wrap">
+
+    <!-- Seletor -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-icon">🔍</div>
+        <div class="card-header-title">Selecionar Município</div>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="selectMunicipio">Município</label>
+          <select id="selectMunicipio">
+            <option value="">Carregando municípios...</option>
+          </select>
+        </div>
+      </div>
+      <div class="loading-bar" id="loadingBar">
+        <div class="spinner"></div>
+        Carregando base de dados...
+      </div>
+    </div>
+
+    <!-- Resultado -->
+    <div class="card resultado-card" id="resultadoCard">
+      <div class="card-header">
+        <div class="card-header-icon">🏙️</div>
+        <div class="card-header-title" id="resultadoTitulo">—</div>
+      </div>
+      <div class="card-body">
+
+        <!-- Header município -->
+        <div class="mun-header">
+          <div class="mun-header-inner">
+            <div class="mun-nome" id="munNome">—</div>
+            <div class="mun-ibge" id="munIbge">—</div>
+          </div>
+        </div>
+
+        <!-- Stats: dados do município -->
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <!-- Tabela de ruas -->
+        <div class="table-section-title">Ruas Mapeadas do Município</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nome da Rua</th>
+                <th>Extensão</th>
+              </tr>
+            </thead>
+            <tbody id="ruasTbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Mapa -->
+        <div class="map-section">
+          <div class="map-label">Traçado Viário do Município</div>
+          <div class="map-wrapper">
+            <div class="map-toolbar">
+              <div class="map-toolbar-info" id="mapToolbarInfo">
+                <span class="map-badge azul" id="mapBadgeRuas">— ruas</span>
+                <span class="map-badge verde" id="mapBadgeExt">— km</span>
+              </div>
+              <div class="map-toolbar-actions">
+                <button class="map-action-btn" onclick="centralizarMapa()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                  Centralizar
+                </button>
+              </div>
+            </div>
+            <div style="position:relative;">
+              <div id="leaflet-map"></div>
+              <div class="map-loading-overlay" id="mapLoadingOverlay">
+                <div class="spinner"></div>
+                <div class="map-loading-text">Carregando traçado viário...</div>
+              </div>
+            </div>
+            <div class="map-legend">
+              <span><span class="legend-line" style="background:#F5A623;"></span>Rua mapeada</span>
+              <span style="margin-left:auto;color:var(--cinza-aux);font-weight:400;">© OpenStreetMap contributors</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-icon">🏙️</div>
+        <div>
+          <div class="footer-name">SEINFRA<span>/AM</span></div>
+          <div class="footer-sub">Departamento de Mobilidade — DMOB</div>
+        </div>
+      </div>
+      <div class="footer-copy">Secretaria de Infraestrutura do Amazonas · 2026</div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ========== CONFIG ==========
+    const SPREADSHEET_ID = '1xZK1yriI4FUVtTF0TrUPYP05DIxGBfeNzSuxmGR8A5M';
+    const API_KEY        = 'AIzaSyDaitkJNDTZi3BMFAe9u4wV6U-DIgUS7NA';
+
+    // GeoJSON URLs no GitHub
+    const BASE_URL         = 'https://raw.githubusercontent.com/leonzordhue/dmob-viario/main/';
+    const GEOJSON_RUAS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS3.geojson';
+    const GEOJSON_POLS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS2.geojson';
+    const EXTRAS = [
+      { nome: 'Autazes',           url: BASE_URL + 'Autazes.geojson' },
+      { nome: 'Careiro',           url: BASE_URL + 'Careiro.geojson' },
+      { nome: 'Careiro da Varzea', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
+    ];
+
+    // ========== STATE ==========
+    let dadosMunicipios  = {};   // { nome: { ibge, territorio, idh, pib, densidade, populacao, ... } }
+    let geoJsonRuas      = null;
+    let geoJsonPoligonos = null;
+    let leafletMap       = null;
+    let tracadoLayer     = null;
+    let poligonoLayer    = null;
+
+    // ========== INIT ==========
+    document.addEventListener('DOMContentLoaded', () => {
+      carregarPlanilha();
+      carregarGeoJsons();
+    });
+
+    // ========== PLANILHA ==========
+    async function carregarPlanilha() {
+      document.getElementById('loadingBar').classList.add('show');
+      try {
+        // Aba "Municípios" — sheet 1 (gid=0 geralmente)
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Municípios!A:Z?key=${API_KEY}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.error) {
+          console.warn('Erro planilha Municípios:', data.error.message);
+          // Tentar sem nome de aba
+          await carregarPlanilhaSemAba();
+          return;
+        }
+
+        processarPlanilha(data.values);
+      } catch (e) {
+        console.error('Erro ao carregar planilha:', e);
+        await carregarPlanilhaSemAba();
+      } finally {
+        document.getElementById('loadingBar').classList.remove('show');
+      }
+    }
+
+    async function carregarPlanilhaSemAba() {
+      try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/A:Z?key=${API_KEY}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (!data.error) processarPlanilha(data.values);
+      } catch(e) { console.error(e); }
+    }
+
+    function processarPlanilha(values) {
+      if (!values || values.length < 2) return;
+      const cab = values[0].map(c => c.toLowerCase().trim());
+      const linhas = values.slice(1);
+
+      // Índices das colunas
+      const idx = {
+        municipio:  cab.findIndex(c => c.includes('município') || c.includes('municipio') || c.includes('nome')),
+        ibge:       cab.findIndex(c => c.includes('ibge') || c.includes('código') || c.includes('codigo')),
+        territorio: cab.findIndex(c => c.includes('territ') || c.includes('área') || c.includes('area')),
+        idh:        cab.findIndex(c => c.includes('idh')),
+        pib:        cab.findIndex(c => c.includes('pib')),
+        densidade:  cab.findIndex(c => c.includes('dens')),
+        populacao:  cab.findIndex(c => c.includes('popul') || c.includes('hab')),
+      };
+
+      console.log('Índices colunas:', idx);
+      console.log('Cabeçalho:', cab);
+
+      linhas.forEach(linha => {
+        const nome = idx.municipio >= 0 ? (linha[idx.municipio] || '').trim() : '';
+        if (!nome) return;
+        dadosMunicipios[nome] = {
+          ibge:       idx.ibge >= 0        ? linha[idx.ibge]       || '' : '',
+          territorio: idx.territorio >= 0  ? linha[idx.territorio] || '' : '',
+          idh:        idx.idh >= 0         ? linha[idx.idh]        || '' : '',
+          pib:        idx.pib >= 0         ? linha[idx.pib]        || '' : '',
+          densidade:  idx.densidade >= 0   ? linha[idx.densidade]  || '' : '',
+          populacao:  idx.populacao >= 0   ? linha[idx.populacao]  || '' : '',
+        };
+      });
+
+      console.log(`✅ Planilha: ${Object.keys(dadosMunicipios).length} municípios`);
+      preencherSelect();
+    }
+
+    // ========== GEOJSON ==========
+    async function carregarGeoJsons() {
+      try {
+        const [r1, r2] = await Promise.all([
+          fetch(GEOJSON_RUAS_URL),
+          fetch(GEOJSON_POLS_URL)
+        ]);
+
+        if (r1.ok) {
+          geoJsonRuas = await r1.json();
+          console.log(`✅ Ruas GeoJSON: ${geoJsonRuas.features.length} features`);
+        } else console.warn('⚠️ Ruas GeoJSON não carregado');
+
+        if (r2.ok) {
+          geoJsonPoligonos = await r2.json();
+          console.log(`✅ Polígonos GeoJSON: ${geoJsonPoligonos.features.length} features`);
+        } else console.warn('⚠️ Polígonos GeoJSON não carregado');
+
+        // Carrega municípios extras (Autazes, Careiro, Careiro da Várzea)
+        for (const extra of EXTRAS) {
+          try {
+            const r = await fetch(extra.url);
+            if (!r.ok) continue;
+            const data = await r.json();
+            // Cria polígono bbox para o município extra
+            const polygon = criarPoligonoBbox(extra.nome, data.features);
+            if (geoJsonPoligonos) geoJsonPoligonos.features.push(polygon);
+            // Adiciona ruas ao geoJsonRuas
+            if (geoJsonRuas) geoJsonRuas.features.push(...data.features);
+            console.log(`✅ Extra: ${extra.nome} — ${data.features.length} ruas`);
+          } catch(e) { console.warn(`⚠️ Erro ao carregar ${extra.nome}:`, e.message); }
+        }
+
+      } catch(e) {
+        console.warn('⚠️ Erro ao carregar GeoJSON:', e.message);
+      }
+    }
+
+    function criarPoligonoBbox(nome, features, margem = 0.01) {
+      const coords = features.flatMap(f => f.geometry.coordinates);
+      const xs = coords.map(c => c[0]);
+      const ys = coords.map(c => c[1]);
+      const minx = Math.min(...xs) - margem, maxx = Math.max(...xs) + margem;
+      const miny = Math.min(...ys) - margem, maxy = Math.max(...ys) + margem;
+      return {
+        type: 'Feature',
+        properties: { name: nome },
+        geometry: { type: 'Polygon', coordinates: [[[minx,miny],[maxx,miny],[maxx,maxy],[minx,maxy],[minx,miny]]] }
+      };
+    }
+
+    // ========== SELECT ==========
+    function preencherSelect() {
+      const municipiosComGeo = geoJsonRuas
+        ? [...new Set(geoJsonRuas.features.map(f => f.properties.municipio).filter(Boolean))].sort()
+        : [];
+
+      const municipiosPlanilha = Object.keys(dadosMunicipios).sort();
+
+      // Unir os dois
+      const todos = [...new Set([...municipiosComGeo, ...municipiosPlanilha])].sort();
+
+      const select = document.getElementById('selectMunicipio');
+      select.innerHTML = '<option value="">Selecione um município</option>';
+      todos.forEach(nome => {
+        const opt = document.createElement('option');
+        opt.value = nome; opt.textContent = nome;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', e => {
+        if (e.target.value) mostrarMunicipio(e.target.value);
+        else document.getElementById('resultadoCard').classList.remove('show');
+      });
+    }
+
+    // ========== SPATIAL: pegar ruas do município ==========
+    function pointInPolygon(point, polygon) {
+      const x = point[0], y = point[1];
+      let inside = false;
+      let j = polygon.length - 1;
+      for (let i = 0; i < polygon.length; i++) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+        j = i;
+      }
+      return inside;
+    }
+
+    function getRuasMunicipio(nomeMunicipio) {
+      if (!geoJsonRuas || !geoJsonPoligonos) return [];
+
+      // Busca polígono do município
+      const polFeature = geoJsonPoligonos.features.find(f =>
+        (f.properties.name || '').trim().toLowerCase() === nomeMunicipio.trim().toLowerCase()
+      );
+      if (!polFeature) return [];
+
+      const polygon = polFeature.geometry.coordinates[0];
+      const minx = Math.min(...polygon.map(c=>c[0]));
+      const maxx = Math.max(...polygon.map(c=>c[0]));
+      const miny = Math.min(...polygon.map(c=>c[1]));
+      const maxy = Math.max(...polygon.map(c=>c[1]));
+
+      return geoJsonRuas.features.filter(rua => {
+        const coords = rua.geometry.coordinates;
+        const mid = coords[Math.floor(coords.length / 2)];
+        const px = mid[0], py = mid[1];
+        if (px < minx || px > maxx || py < miny || py > maxy) return false;
+        return pointInPolygon([px, py], polygon);
+      });
+    }
+
+    // ========== EXIBIR MUNICÍPIO ==========
+    function mostrarMunicipio(nome) {
+      const dados = dadosMunicipios[nome] || {};
+      const ruas  = getRuasMunicipio(nome);
+
+      // Calcular extensão total
+      let extTotalM = 0;
+      ruas.forEach(r => {
+        const desc = r.properties.description || '';
+        const m = desc.match(/([\d.,]+)\s*m/i);
+        if (m) extTotalM += parseFloat(m[1].replace(',','.'));
+      });
+      const extTotalKm = (extTotalM / 1000).toFixed(2);
+
+      // Header
+      document.getElementById('resultadoTitulo').textContent = nome;
+      document.getElementById('munNome').textContent = nome;
+      document.getElementById('munIbge').textContent = dados.ibge ? `Código IBGE: ${dados.ibge}` : 'Código IBGE: não informado';
+
+      // Stats
+      const nd = (v, suf='') => v ? `${v}${suf}` : '<span class="nd">—</span>';
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-box">
+          <div class="stat-box-value">${ruas.length}</div>
+          <div class="stat-box-label">Ruas Mapeadas</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-value">${extTotalKm}</div>
+          <div class="stat-box-label">Extensão Total (km)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-value sm">${nd(dados.territorio, ' km²')}</div>
+          <div class="stat-box-label">Território Municipal</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-value sm">${nd(dados.populacao)}</div>
+          <div class="stat-box-label">Habitantes</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-value sm">${nd(dados.densidade, ' hab/km²')}</div>
+          <div class="stat-box-label">Densidade Demográfica</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-value sm">${nd(dados.idh)}</div>
+          <div class="stat-box-label">IDH</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-value sm">${nd(dados.pib)}</div>
+          <div class="stat-box-label">PIB</div>
+        </div>
+      `;
+
+      // Tabela de ruas
+      const ruasOrdenadas = [...ruas].sort((a, b) => {
+        const na = (a.properties.name || '').toLowerCase();
+        const nb = (b.properties.name || '').toLowerCase();
+        return na.localeCompare(nb);
+      });
+
+      document.getElementById('ruasTbody').innerHTML = ruasOrdenadas.map((r, i) => {
+        const nome_rua = r.properties.name || 'Sem nome';
+        const desc = r.properties.description || '';
+        const m = desc.match(/([\d.,]+)\s*m/i);
+        const ext = m ? `${parseFloat(m[1].replace(',','.')).toFixed(0)} m` : '—';
+        return `<tr>
+          <td style="color:var(--cinza-aux);font-weight:400;">${i+1}</td>
+          <td>${nome_rua}</td>
+          <td><span class="badge-ext">${ext}</span></td>
+        </tr>`;
+      }).join('');
+
+      // Mapa
+      document.getElementById('mapBadgeRuas').textContent = `${ruas.length} ruas`;
+      document.getElementById('mapBadgeExt').textContent = `${extTotalKm} km`;
+      renderizarMapa(nome, ruas);
+
+      const card = document.getElementById('resultadoCard');
+      card.classList.add('show');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ========== MAPA ==========
+    function renderizarMapa(nomeMunicipio, ruas) {
+      const overlay = document.getElementById('mapLoadingOverlay');
+      overlay.classList.remove('hidden');
+
+      if (leafletMap) { leafletMap.remove(); leafletMap = null; tracadoLayer = null; poligonoLayer = null; }
+
+      setTimeout(() => {
+        leafletMap = L.map('leaflet-map', {
+          center: [-3.5, -62.0], zoom: 7,
+          zoomControl: true, attributionControl: false
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletMap);
+
+        // Polígono do município
+        if (geoJsonPoligonos) {
+          const polFeature = geoJsonPoligonos.features.find(f =>
+            (f.properties.name || '').trim().toLowerCase() === nomeMunicipio.trim().toLowerCase()
+          );
+          if (polFeature) {
+            poligonoLayer = L.geoJSON(polFeature, {
+              style: { color: '#002D72', weight: 2, opacity: 0.6, fillColor: '#002D72', fillOpacity: 0.04 }
+            }).addTo(leafletMap);
+          }
+        }
+
+        // Ruas
+        if (ruas.length > 0) {
+          const fc = { type: 'FeatureCollection', features: ruas };
+          tracadoLayer = L.geoJSON(fc, {
+            style: { color: '#F5A623', weight: 3, opacity: 0.9, lineJoin: 'round', lineCap: 'round' },
+            onEachFeature: (feature, layer) => {
+              const nome_rua = feature.properties.name || 'Sem nome';
+              const desc = feature.properties.description || '';
+              layer.bindPopup(`
+                <div style="font-family:'Outfit',sans-serif;font-size:0.82rem;">
+                  <div style="font-weight:800;color:#002D72;margin-bottom:4px;">${nome_rua}</div>
+                  <div style="color:#4A5568;">${desc}</div>
+                </div>
+              `, { maxWidth: 220 });
+            }
+          }).addTo(leafletMap);
+          leafletMap.fitBounds(tracadoLayer.getBounds(), { padding: [30, 30] });
+        } else if (poligonoLayer) {
+          leafletMap.fitBounds(poligonoLayer.getBounds(), { padding: [30, 30] });
+        }
+
+        overlay.classList.add('hidden');
+      }, 80);
+    }
+
+    function centralizarMapa() {
+      if (!leafletMap) return;
+      if (tracadoLayer) leafletMap.fitBounds(tracadoLayer.getBounds(), { padding: [30, 30] });
+      else if (poligonoLayer) leafletMap.fitBounds(poligonoLayer.getBounds(), { padding: [30, 30] });
+    }
+
+    // ========== FALLBACK: Se planilha não carregou, preenche select com GeoJSON ==========
+    // Executa após 3s se o select ainda estiver vazio
+    setTimeout(() => {
+      const sel = document.getElementById('selectMunicipio');
+      if (sel.options.length <= 1 && geoJsonPoligonos) {
+        const municipios = [...new Set(geoJsonPoligonos.features.map(f => f.properties.name).filter(Boolean))].sort();
+        sel.innerHTML = '<option value="">Selecione um município</option>';
+        municipios.forEach(nome => {
+          const opt = document.createElement('option');
+          opt.value = nome; opt.textContent = nome;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener('change', e => {
+          if (e.target.value) mostrarMunicipio(e.target.value);
+          else document.getElementById('resultadoCard').classList.remove('show');
+        });
+      }
+    }, 3000);
+  </script>
+
+</body>
+</html>
