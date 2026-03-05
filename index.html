@@ -347,9 +347,9 @@
     const GEOJSON_RUAS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS3.geojson';
     const GEOJSON_POLS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS2.geojson';
     const EXTRAS = [
-      { nome: 'Autazes',           url: BASE_URL + 'Autazes.geojson' },
-      { nome: 'Careiro',           url: BASE_URL + 'Careiro.geojson' },
-      { nome: 'Careiro da Varzea', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
+      { nome: 'Autazes',           cod: '1300300', url: BASE_URL + 'Autazes.geojson' },
+      { nome: 'Careiro',           cod: '1301001', url: BASE_URL + 'Careiro.geojson' },
+      { nome: 'Careiro da Várzea', cod: '1301100', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
     ];
 
     // ========== STATE ==========
@@ -371,33 +371,16 @@
       document.getElementById('loadingBar').classList.add('show');
       try {
         // Aba "Municípios" — sheet 1 (gid=0 geralmente)
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Municípios!A:Z?key=${API_KEY}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/indicadores_municipais!A:Z?key=${API_KEY}`;
         const resp = await fetch(url);
         const data = await resp.json();
-
-        if (data.error) {
-          console.warn('Erro planilha Municípios:', data.error.message);
-          // Tentar sem nome de aba
-          await carregarPlanilhaSemAba();
-          return;
-        }
-
+        if (data.error) { console.error('Erro planilha:', data.error.message); return; }
         processarPlanilha(data.values);
       } catch (e) {
         console.error('Erro ao carregar planilha:', e);
-        await carregarPlanilhaSemAba();
       } finally {
         document.getElementById('loadingBar').classList.remove('show');
       }
-    }
-
-    async function carregarPlanilhaSemAba() {
-      try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/A:Z?key=${API_KEY}`;
-        const resp = await fetch(url);
-        const data = await resp.json();
-        if (!data.error) processarPlanilha(data.values);
-      } catch(e) { console.error(e); }
     }
 
     function processarPlanilha(values) {
@@ -405,30 +388,34 @@
       const cab = values[0].map(c => c.toLowerCase().trim());
       const linhas = values.slice(1);
 
-      // Índices das colunas
+      // Cabeçalho real da aba indicadores_municipais:
+      // municipio | codigo_ibge | populacao | area_km2 | densidade_demografica
+      // extensao_viaria_km | km_por_habitante | pib_municipal | idh | regiao_imediata
       const idx = {
-        municipio:  cab.findIndex(c => c.includes('município') || c.includes('municipio') || c.includes('nome')),
-        ibge:       cab.findIndex(c => c.includes('ibge') || c.includes('código') || c.includes('codigo')),
-        territorio: cab.findIndex(c => c.includes('territ') || c.includes('área') || c.includes('area')),
-        idh:        cab.findIndex(c => c.includes('idh')),
-        pib:        cab.findIndex(c => c.includes('pib')),
+        municipio:  cab.findIndex(c => c.includes('municipio') || c.includes('município')),
+        ibge:       cab.findIndex(c => c.includes('ibge')),
+        populacao:  cab.findIndex(c => c.includes('populacao') || c.includes('população')),
+        territorio: cab.findIndex(c => c.includes('area') || c.includes('área')),
         densidade:  cab.findIndex(c => c.includes('dens')),
-        populacao:  cab.findIndex(c => c.includes('popul') || c.includes('hab')),
+        extensao:   cab.findIndex(c => c.includes('extensao') || c.includes('extensão')),
+        pib:        cab.findIndex(c => c.includes('pib')),
+        idh:        cab.findIndex(c => c.includes('idh')),
       };
 
-      console.log('Índices colunas:', idx);
       console.log('Cabeçalho:', cab);
+      console.log('Índices:', idx);
 
       linhas.forEach(linha => {
         const nome = idx.municipio >= 0 ? (linha[idx.municipio] || '').trim() : '';
         if (!nome) return;
         dadosMunicipios[nome] = {
-          ibge:       idx.ibge >= 0        ? linha[idx.ibge]       || '' : '',
-          territorio: idx.territorio >= 0  ? linha[idx.territorio] || '' : '',
-          idh:        idx.idh >= 0         ? linha[idx.idh]        || '' : '',
-          pib:        idx.pib >= 0         ? linha[idx.pib]        || '' : '',
-          densidade:  idx.densidade >= 0   ? linha[idx.densidade]  || '' : '',
-          populacao:  idx.populacao >= 0   ? linha[idx.populacao]  || '' : '',
+          ibge:       idx.ibge       >= 0 ? linha[idx.ibge]       || '' : '',
+          populacao:  idx.populacao  >= 0 ? linha[idx.populacao]  || '' : '',
+          territorio: idx.territorio >= 0 ? linha[idx.territorio] || '' : '',
+          densidade:  idx.densidade  >= 0 ? linha[idx.densidade]  || '' : '',
+          extensao:   idx.extensao   >= 0 ? linha[idx.extensao]   || '' : '',
+          pib:        idx.pib        >= 0 ? linha[idx.pib]        || '' : '',
+          idh:        idx.idh        >= 0 ? linha[idx.idh]        || '' : '',
         };
       });
 
@@ -461,10 +448,22 @@
             const r = await fetch(extra.url);
             if (!r.ok) continue;
             const data = await r.json();
-            // Cria polígono bbox para o município extra
-            const polygon = criarPoligonoBbox(extra.nome, data.features);
+            // Busca polígono real do IBGE
+            let polygon = null;
+            try {
+              const ibgeUrl = `https://servicodados.ibge.gov.br/api/v3/malhas/municipios/${extra.cod}?formato=application/vnd.geo+json&qualidade=minima`;
+              const ri = await fetch(ibgeUrl);
+              if (ri.ok) {
+                const ibgeData = await ri.json();
+                if (ibgeData.features && ibgeData.features[0]) {
+                  polygon = { ...ibgeData.features[0], properties: { name: extra.nome } };
+                  console.log(`✅ Polígono IBGE: ${extra.nome}`);
+                }
+              }
+            } catch(e) { console.warn(`⚠️ Polígono IBGE falhou para ${extra.nome}, usando bbox`); }
+            // Fallback: bbox se IBGE falhar
+            if (!polygon) polygon = criarPoligonoBbox(extra.nome, data.features);
             if (geoJsonPoligonos) geoJsonPoligonos.features.push(polygon);
-            // Adiciona ruas ao geoJsonRuas
             if (geoJsonRuas) geoJsonRuas.features.push(...data.features);
             console.log(`✅ Extra: ${extra.nome} — ${data.features.length} ruas`);
           } catch(e) { console.warn(`⚠️ Erro ao carregar ${extra.nome}:`, e.message); }
