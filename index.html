@@ -170,6 +170,23 @@
     .footer-sub { font-size: 0.65rem; color: var(--cinza-aux); }
     .footer-copy { font-size: 0.68rem; color: var(--cinza-aux); }
 
+    /* MAPA AM */
+    #mapa-am { cursor: pointer; }
+    .municipio-label {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .municipio-label div {
+      font-family: var(--font);
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--azul);
+      text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
     @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
     @keyframes spin { to{transform:rotate(360deg)} }
   </style>
@@ -208,19 +225,28 @@
 
   <div class="main-wrap">
 
-    <!-- Seletor -->
-    <div class="card">
+    <!-- Mapa de seleção do Amazonas -->
+    <div class="card" id="cardMapaAM">
       <div class="card-header">
-        <div class="card-header-icon">🔍</div>
-        <div class="card-header-title">Selecionar Município</div>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <label for="selectMunicipio">Município</label>
-          <select id="selectMunicipio">
-            <option value="">Carregando municípios...</option>
-          </select>
+        <div class="card-header-icon">🗺️</div>
+        <div class="card-header-title">Selecione um Município no Mapa</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:0.5rem;">
+          <div class="form-group" style="margin:0;min-width:220px;">
+            <select id="selectMunicipio" style="font-size:0.8rem;padding:0.45rem 2rem 0.45rem 0.75rem;">
+              <option value="">Ou busque pelo nome...</option>
+            </select>
+          </div>
         </div>
+      </div>
+      <div style="position:relative;">
+        <div id="mapa-am" style="width:100%;height:500px;background:#e8eef5;"></div>
+        <div class="map-loading-overlay" id="mapaAmOverlay">
+          <div class="spinner"></div>
+          <div class="map-loading-text">Carregando mapa do Amazonas...</div>
+        </div>
+      </div>
+      <div style="padding:0.6rem 1rem;background:var(--azul-claro);border-top:1px solid var(--azul-borda);font-size:0.72rem;color:var(--cinza-med);font-weight:600;">
+        🖱️ Clique em um município para ver as informações detalhadas
       </div>
       <div class="loading-bar" id="loadingBar">
         <div class="spinner"></div>
@@ -407,7 +433,8 @@
       });
 
       console.log(`✅ Planilha: ${Object.keys(dadosMunicipios).length} municípios`);
-      preencherSelect();
+      if (geoJsonPoligonos) preencherSelect();
+      else setTimeout(preencherSelect, 2000);
     }
 
     // ========== GEOJSON ==========
@@ -443,6 +470,9 @@
           } catch(e) { console.warn(`⚠️ Erro ao carregar ${extra.nome}:`, e.message); }
         }
 
+        // Após carregar tudo, inicializa select e mapa AM
+        if (Object.keys(dadosMunicipios).length > 0) preencherSelect();
+
       } catch(e) {
         console.warn('⚠️ Erro ao carregar GeoJSON:', e.message);
       }
@@ -461,29 +491,102 @@
       };
     }
 
-    // ========== SELECT ==========
+    // ========== SELECT + MAPA AM ==========
+    let mapaAM = null;
+    let poligonosAMLayer = null;
+    let municipioAtivo = null;
+
     function preencherSelect() {
-      const municipiosComGeo = geoJsonRuas
-        ? [...new Set(geoJsonRuas.features.map(f => f.properties.municipio).filter(Boolean))].sort()
-        : [];
-
       const municipiosPlanilha = Object.keys(dadosMunicipios).sort();
-
-      // Unir os dois
-      const todos = [...new Set([...municipiosComGeo, ...municipiosPlanilha])].sort();
+      const municipiosGeo = geoJsonPoligonos
+        ? geoJsonPoligonos.features.map(f => f.properties.name).filter(Boolean).sort()
+        : [];
+      const todos = [...new Set([...municipiosGeo, ...municipiosPlanilha])].sort();
 
       const select = document.getElementById('selectMunicipio');
-      select.innerHTML = '<option value="">Selecione um município</option>';
+      select.innerHTML = '<option value="">Ou busque pelo nome...</option>';
       todos.forEach(nome => {
         const opt = document.createElement('option');
         opt.value = nome; opt.textContent = nome;
         select.appendChild(opt);
       });
-
       select.addEventListener('change', e => {
-        if (e.target.value) mostrarMunicipio(e.target.value);
-        else document.getElementById('resultadoCard').classList.remove('show');
+        if (e.target.value) selecionarMunicipio(e.target.value);
       });
+
+      // Inicializa mapa do Amazonas
+      iniciarMapaAM();
+    }
+
+    function iniciarMapaAM() {
+      if (!geoJsonPoligonos) return;
+      const overlay = document.getElementById('mapaAmOverlay');
+
+      mapaAM = L.map('mapa-am', {
+        center: [-4.5, -63.5], zoom: 5,
+        zoomControl: true, attributionControl: false
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18, opacity: 0.4
+      }).addTo(mapaAM);
+
+      poligonosAMLayer = L.geoJSON(geoJsonPoligonos, {
+        style: estiloPadrao,
+        onEachFeature: (feature, layer) => {
+          const nome = feature.properties.name || '';
+          if (!nome) return;
+
+          layer.on('mouseover', function() {
+            if (municipioAtivo !== nome) {
+              this.setStyle({ fillColor: '#002D72', fillOpacity: 0.25, weight: 2, color: '#002D72' });
+            }
+            this.bindTooltip(`<div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:0.82rem;color:#002D72;">${nome}</div>`, {
+              sticky: true, className: 'municipio-tooltip'
+            }).openTooltip();
+          });
+
+          layer.on('mouseout', function() {
+            if (municipioAtivo !== nome) {
+              poligonosAMLayer.resetStyle(this);
+            }
+          });
+
+          layer.on('click', function() {
+            selecionarMunicipio(nome);
+          });
+        }
+      }).addTo(mapaAM);
+
+      overlay.classList.add('hidden');
+    }
+
+    function estiloPadrao() {
+      return { color: '#002D72', weight: 1.5, opacity: 0.7, fillColor: '#EBF0FA', fillOpacity: 0.5 };
+    }
+
+    function estiloAtivo() {
+      return { color: '#002D72', weight: 2.5, opacity: 1, fillColor: '#F5A623', fillOpacity: 0.4 };
+    }
+
+    function selecionarMunicipio(nome) {
+      // Atualiza estilo no mapa AM
+      if (poligonosAMLayer) {
+        poligonosAMLayer.eachLayer(layer => {
+          const n = layer.feature?.properties?.name;
+          if (n === nome) {
+            layer.setStyle(estiloAtivo());
+            municipioAtivo = nome;
+          } else {
+            poligonosAMLayer.resetStyle(layer);
+          }
+        });
+      }
+      // Atualiza dropdown
+      const sel = document.getElementById('selectMunicipio');
+      sel.value = nome;
+      // Mostra informações
+      mostrarMunicipio(nome);
     }
 
     // ========== SPATIAL: pegar ruas do município ==========
@@ -663,24 +766,13 @@
       else if (poligonoLayer) leafletMap.fitBounds(poligonoLayer.getBounds(), { padding: [30, 30] });
     }
 
-    // ========== FALLBACK: Se planilha não carregou, preenche select com GeoJSON ==========
-    // Executa após 3s se o select ainda estiver vazio
+    // ========== FALLBACK: Se planilha não carregou, init mapa AM ==========
     setTimeout(() => {
       const sel = document.getElementById('selectMunicipio');
       if (sel.options.length <= 1 && geoJsonPoligonos) {
-        const municipios = [...new Set(geoJsonPoligonos.features.map(f => f.properties.name).filter(Boolean))].sort();
-        sel.innerHTML = '<option value="">Selecione um município</option>';
-        municipios.forEach(nome => {
-          const opt = document.createElement('option');
-          opt.value = nome; opt.textContent = nome;
-          sel.appendChild(opt);
-        });
-        sel.addEventListener('change', e => {
-          if (e.target.value) mostrarMunicipio(e.target.value);
-          else document.getElementById('resultadoCard').classList.remove('show');
-        });
+        preencherSelect();
       }
-    }, 3000);
+    }, 4000);
   </script>
 
 </body>
