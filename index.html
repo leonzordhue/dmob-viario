@@ -386,17 +386,25 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // ========== CONFIG ==========
-    const SPREADSHEET_ID = '1xZK1yriI4FUVtTF0TrUPYP05DIxGBfeNzSuxmGR8A5M';
-    const SHEET_GID      = '1301969661';
+    // Dados dos 62 municípios embarcados diretamente — sem dependência de API
+    // Gerado automaticamente a partir da planilha indicadores_municipais
+    const DADOS_MUNICIPIOS = {"BARCELOS":{"nome":"BARCELOS","ibge":"1300409","pop":"18834","area":"122475.73","dens":"0.15","ext":"31.574","pib":"R$ 245.6 M","idh":"0.5"},"SANTA ISABEL DO RIO NEGRO":{"nome":"SANTA ISABEL DO RIO NEGRO","ibge":"1303601","pop":"14164","area":"62800.15","dens":"0.23","ext":"48.769","pib":"R$ 185.8 M","idh":"0.555"},"SAO GABRIEL DA CACHOEIRA":{"nome":"SÃO GABRIEL DA CACHOEIRA","ibge":"1303809","pop":"51795","area":"109185.69","dens":"0.47","ext":"71.683","pib":"R$ 423.1 M","idh":"0.663"},"BENJAMIN CONSTANT":{"nome":"BENJAMIN CONSTANT","ibge":"1300607","pop":"37648","area":"8793.42","dens":"4.28","ext":"63.201","pib":"R$ 388.8 M","idh":"0.574"},"SANTO ANTONIO DO ICA":{"nome":"SANTO ANTÔNIO DO IÇÁ","ibge":"1303700","pop":"28211","area":"12977.46","dens":"2.17","ext":"43.92","pib":"R$ 237.3 M","idh":"0.571"},"SAO PAULO DE OLIVENCA":{"nome":"SÃO PAULO DE OLIVENÇA","ibge":"1303908","pop":"32967","area":"15281.33","dens":"2.16","ext":"38.931","pib":"R$ 334.1 M","idh":"0.59"},"TONANTINS":{"nome":"TONANTINS","ibge":"1304237","pop":"19247","area":"6432.68","dens":"2.99","ext":"35.846","pib":"R$ 185.4 M","idh":"0.571"},"TABATINGA":{"nome":"Tabatinga","ibge":"1304062","pop":"66764","area":"3224.89","dens":"20.7","ext":"126.921","pib":"R$ 758.035","idh":"0.616"},"AMATURA":{"nome":"AMATURÁ","ibge":"1300060","pop":"10819","area":"4758.72","dens":"2.27","ext":"27.028","pib":"R$ 118.9 M","idh":"0.565"},"ATALAIA DO NORTE":{"nome":"Atalaia do Norte","ibge":"1300201","pop":"15314","area":"76355.6","dens":"0.2","ext":"26.181","pib":"R$ 184.9 M","idh":"0.542"},"BARREIRINHA":{"nome":"BARREIRINHA","ibge":"1300508","pop":"31051","area":"5750.57","dens":"5.4","ext":"27.606","pib":"R$ 344.9 M","idh":"0.556"},"BOA VISTA DO RAMOS":{"nome":"BOA VISTA DO RAMOS","ibge":"1300680","pop":"23785","area":"2586.84","dens":"9.19","ext":"70.01","pib":"R$ 182.4 M","idh":"0.594"},"NHAMUNDA":{"nome":"NHAMUNDÁ","ibge":"1303007","pop":"20136","area":"14105.91","dens":"1.43","ext":"12.631","pib":"R$ 207.0 M","idh":"0.586"},"PARINTINS":{"nome":"PARINTINS","ibge":"1303403","pop":"96372","area":"5952.33","dens":"16.19","ext":"199.189","pib":"R$ 1.4 M","idh":"0.658"},"SAO SEBASTIAO DO UATUMA":{"nome":"SÃO SEBASTIÃO DO UATUMÃ","ibge":"1303957","pop":"11670","area":"10741.06","dens":"1.09","ext":"37.801","pib":"R$ 136.6 M","idh":"0.585"},"URUCARA":{"nome":"URUCARÁ","ibge":"1304302","pop":"18631","area":"27906.7","dens":"0.67","ext":"57.585","pib":"R$ 205.7 M","idh":"0.588"},"CARAUARI":{"nome":"CARAUARI","ibge":"1301001","pop":"28742","area":"25778.67","dens":"1.11","ext":"70.694","pib":"R$ 370.7 M","idh":"0.593"},"EIRUNEPE":{"nome":"EIRUNEPÉ","ibge":"1301407","pop":"33170","area":"15970.64","dens":"2.08","ext":"68.575","pib":"R$ 568.036","idh":"0.624"},"ENVIRA":{"nome":"ENVIRA","ibge":"1301506","pop":"17186","area":"7516.79","dens":"2.29","ext":"64.579","pib":"R$ 215.5 M","idh":"0.56"},"GUAJARA":{"nome":"GUAJARÁ","ibge":"1301654","pop":"13815","area":"7584.6","dens":"1.82","ext":"30.83","pib":"R$ 177.3 M","idh":"0.569"},"IPIXUNA":{"nome":"IPIXUNA","ibge":"1301803","pop":"24311","area":"13194.05","dens":"1.84","ext":"33.004","pib":"R$ 216.5 M","idh":"0.555"},"ITAMARATI":{"nome":"ITAMARATI","ibge":"1301951","pop":"10937","area":"25275.97","dens":"0.43","ext":"15.676","pib":"R$ 135.6 M","idh":"0.554"},"BORBA":{"nome":"BORBA","ibge":"1300805","pop":"33080","area":"44251.72","dens":"0.75","ext":"44.14","pib":"R$ 402.1 M","idh":"0.575"},"HUMAITA":{"nome":"HUMAITÁ","ibge":"1301704","pop":"57473","area":"33111.14","dens":"1.74","ext":"146.114","pib":"R$ 860.168","idh":"0.605"},"MANICORE":{"nome":"MANICORÉ","ibge":"1302702","pop":"53914","area":"48631.33","dens":"1.11","ext":"93.9","pib":"R$ 686.279","idh":"0.567"},"NOVO ARIPUANA":{"nome":"NOVO ARIPUANÃ","ibge":"1303304","pop":"23818","area":"41187.96","dens":"0.58","ext":"47.143","pib":"R$ 252.4 M","idh":"0.567"},"APUI":{"nome":"APUÍ","ibge":"1300144","pop":"20647","area":"54240.55","dens":"0.38","ext":"98.525","pib":"R$ 297.8 M","idh":"0.637"},"ITACOATIARA":{"nome":"ITACOATIARA","ibge":"1301902","pop":"103598","area":"8891.9","dens":"11.65","ext":"164.826","pib":"R$ 2.4 M","idh":"0.644"},"ITAPIRANGA":{"nome":"ITAPIRANGA","ibge":"1302009","pop":"10162","area":"4231.14","dens":"2.4","ext":"45.61","pib":"R$ 152.5 M","idh":"0.622"},"MAUES":{"nome":"MAUÉS","ibge":"1302900","pop":"61204","area":"39991.07","dens":"1.53","ext":"74.231","pib":"R$ 595.826","idh":"0.593"},"NOVA OLINDA DO NORTE":{"nome":"NOVA OLINDA DO NORTE","ibge":"1303106","pop":"27062","area":"5609.62","dens":"4.82","ext":"58.686","pib":"R$ 341.7 M","idh":"0.602"},"PRESIDENTE FIGUEIREDO":{"nome":"PRESIDENTE FIGUEIREDO","ibge":"1303536","pop":"30668","area":"25422.28","dens":"1.21","ext":"68.915","pib":"R$ 1.0 M","idh":"0.647"},"SILVES":{"nome":"SILVES","ibge":"1304005","pop":"11559","area":"3748.83","dens":"3.08","ext":"22.469","pib":"R$ 175.0 M","idh":"0.613"},"URUCURITUBA":{"nome":"URUCURITUBA","ibge":"1304401","pop":"23945","area":"3051.54","dens":"7.85","ext":"53.555","pib":"R$ 232.7 M","idh":"0.598"},"BOCA DO ACRE":{"nome":"BOCA DO ACRE","ibge":"1300706","pop":"35447","area":"21952.86","dens":"1.61","ext":"64.648","pib":"R$ 512.796","idh":"0.588"},"CANUTAMA":{"nome":"CANUTAMA","ibge":"1300904","pop":"16869","area":"29787.94","dens":"0.57","ext":"23.282","pib":"R$ 154.3 M","idh":"0.587"},"LABREA":{"nome":"LÁBREA","ibge":"1302405","pop":"45448","area":"68262.68","dens":"0.67","ext":"95.608","pib":"R$ 625.198","idh":"0.553"},"PAUINI":{"nome":"PAUINI","ibge":"1303502","pop":"19373","area":"41610.41","dens":"0.47","ext":"28.743","pib":"R$ 199.5 M","idh":"0.588"},"TAPAUA":{"nome":"TAPAUÁ","ibge":"1304104","pop":"19599","area":"8946.98","dens":"2.19","ext":"15.993","pib":"R$ 239.9 M","idh":"0.572"},"BERURI":{"nome":"BERURI","ibge":"1300631","pop":"20718","area":"17152.59","dens":"1.21","ext":"31.926","pib":"R$ 211.9 M","idh":"0.593"},"CAAPIRANGA":{"nome":"CAAPIRANGA","ibge":"1300839","pop":"13469","area":"9541.38","dens":"1.41","ext":"38.079","pib":"R$ 177.9 M","idh":"0.587"},"CAREIRO":{"nome":"CAREIRO","ibge":"1301100","pop":"30792","area":"6091.55","dens":"5.05","ext":"32.217","pib":"R$ 395.2 M","idh":"0.571"},"CAREIRO DA VARZEA":{"nome":"CAREIRO DA VÁRZEA","ibge":"1301159","pop":"19637","area":"2631.14","dens":"7.46","ext":"24.31","pib":"R$ 413.4 M","idh":"0.55"},"COARI":{"nome":"COARI","ibge":"1301209","pop":"70616","area":"57920.36","dens":"1.22","ext":"120.202","pib":"R$ 3.4 M","idh":"0.586"},"CODAJAS":{"nome":"CODAJÁS","ibge":"1301308","pop":"23549","area":"18711.44","dens":"1.26","ext":"40.324","pib":"R$ 531.995","idh":"0.558"},"IRANDUBA":{"nome":"IRANDUBA","ibge":"1301852","pop":"61163","area":"2212.27","dens":"27.65","ext":"45.027","pib":"R$ 1.0 M","idh":"0.646"},"MANACAPURU":{"nome":"MANACAPURU","ibge":"1302504","pop":"101883","area":"7330.07","dens":"13.9","ext":"83.077","pib":"R$ 1.5 M","idh":"0.614"},"MANAQUIRI":{"nome":"MANAQUIRI","ibge":"1302553","pop":"17107","area":"3974.65","dens":"4.3","ext":"18.614","pib":"R$ 311.3 M","idh":"0.602"},"NOVO AIRAO":{"nome":"NOVO AIRÃO","ibge":"1303205","pop":"15761","area":"37771.06","dens":"0.42","ext":"55.156","pib":"R$ 186.5 M","idh":"0.621"},"RIO PRETO DA EVA":{"nome":"RIO PRETO DA EVA","ibge":"1303569","pop":"24936","area":"5894.39","dens":"4.23","ext":"109.712","pib":"R$ 407.1 M","idh":"0.622"},"ANAMA":{"nome":"ANAMÃ","ibge":"1300086","pop":"9962","area":"2454.54","dens":"4.06","ext":"10.893","pib":"R$ 138.6 M","idh":"0.594"},"ANORI":{"nome":"ANORI","ibge":"1300102","pop":"17194","area":"5796.78","dens":"2.97","ext":"35.619","pib":"R$ 248.4 M","idh":"0.594"},"AUTAZES":{"nome":"AUTAZES","ibge":"1300300","pop":"41564","area":"7599.28","dens":"5.47","ext":"88.673","pib":"R$ 506.341","idh":"0.592"},"FONTE BOA":{"nome":"FONTE BOA","ibge":"1301605","pop":"25871","area":"12459.27","dens":"2.08","ext":"61.157","pib":"R$ 222.8 M","idh":"0.55"},"JAPURA":{"nome":"JAPURÁ","ibge":"1302108","pop":"8858","area":"5550.37","dens":"1.6","ext":"18.003","pib":"R$ 85.8 M","idh":"0.542"},"JURUA":{"nome":"JURUÁ","ibge":"1302207","pop":"10742","area":"19585.28","dens":"0.55","ext":"25.336","pib":"R$ 138.1 M","idh":"0.575"},"JUTAI":{"nome":"JUTAÍ","ibge":"1302306","pop":"25172","area":"6953.58","dens":"3.62","ext":"40.412","pib":"R$ 266.4 M","idh":"0.566"},"MARAA":{"nome":"MARAÃ","ibge":"1302801","pop":"15529","area":"16910.37","dens":"0.92","ext":"19.745","pib":"R$ 176.2 M","idh":"0.566"},"TEFE":{"nome":"TEFÉ","ibge":"1304203","pop":"73669","area":"23692.22","dens":"3.11","ext":"84.479","pib":"R$ 1.1 M","idh":"0.639"},"UARINI":{"nome":"UARINI","ibge":"1304260","pop":"14431","area":"10246.03","dens":"1.41","ext":"38.976","pib":"R$ 229.2 M","idh":"0.573"},"ALVARAES":{"nome":"ALVARÃES","ibge":"1300029","pop":"15866","area":"5968.82","dens":"2.66","ext":"20.001","pib":"R$ 217.3 M","idh":"0.564"},"MANAUS":{"nome":"Manaus","ibge":"1302603","pop":"2063547","area":"11401.09","dens":"180.99","ext":"","pib":"R$ 79.40 bi","idh":"0.737"}};
 
     // GeoJSON URLs no GitHub (raw)
     const BASE_URL         = 'https://raw.githubusercontent.com/leonzordhue/dmob-viario/main/';
     const GEOJSON_RUAS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS3.geojson';
     const GEOJSON_POLS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS2.geojson';
+
+    // Polígonos pré-calculados via convex hull das próprias ruas (elimina IBGE API)
+    const EXTRAS_POLIGONOS = {
+      'Autazes':           [[-59.145266,-3.58542],[-59.13223,-3.633172],[-59.131971,-3.633706],[-59.131295,-3.634824],[-59.104517,-3.669858],[-59.098975,-3.676587],[-59.098547,-3.677091],[-59.097837,-3.677422],[-59.096781,-3.677892],[-59.096072,-3.678034],[-59.092397,-3.677086],[-59.109482,-3.577255],[-59.111719,-3.574719],[-59.114958,-3.571072],[-59.118791,-3.570984],[-59.125926,-3.572754],[-59.130431,-3.574491],[-59.135376,-3.578091],[-59.145266,-3.58542]],
+      'Careiro':           [[-60.370926,-3.820368],[-60.364773,-3.827076],[-60.364293,-3.827366],[-60.358055,-3.823353],[-60.356462,-3.822281],[-60.354983,-3.821226],[-60.347407,-3.815333],[-60.353505,-3.809981],[-60.355496,-3.808671],[-60.360702,-3.808405],[-60.361165,-3.80878],[-60.36879,-3.817075],[-60.370454,-3.819094],[-60.370926,-3.820368]],
+      'Careiro da Várzea': [[-59.848721,-3.189432],[-59.845516,-3.191047],[-59.843123,-3.192094],[-59.840274,-3.193307],[-59.834668,-3.195535],[-59.833525,-3.195957],[-59.830873,-3.196921],[-59.824814,-3.199114],[-59.812876,-3.202946],[-59.812506,-3.203045],[-59.80193,-3.205052],[-59.741303,-3.214958],[-59.740262,-3.215115],[-59.739436,-3.215235],[-59.738962,-3.215285],[-59.735941,-3.215384],[-59.709947,-3.214448],[-59.708044,-3.214117],[-59.705602,-3.213536],[-59.671239,-3.204971],[-59.848721,-3.189432]]
+    };
     const EXTRAS = [
-      { nome: 'Autazes',           cod: '1300300', url: BASE_URL + 'Autazes.geojson' },
-      { nome: 'Careiro',           cod: '1301001', url: BASE_URL + 'Careiro.geojson' },
-      { nome: 'Careiro da Várzea', cod: '1301100', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
+      { nome: 'Autazes',           url: BASE_URL + 'Autazes.geojson' },
+      { nome: 'Careiro',           url: BASE_URL + 'Careiro.geojson' },
+      { nome: 'Careiro da Várzea', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
     ];
 
     // ========== STATE ==========
@@ -414,76 +422,36 @@
     document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('loadingBar').classList.add('show');
       try {
-        await Promise.all([carregarPlanilha(), carregarGeoJsons()]);
+        // carregarPlanilha é síncrono (dados embarcados) — carregarGeoJsons é async (GitHub)
+        await carregarPlanilha();
+        await carregarGeoJsons();
       } catch(e) {
         console.error('Erro na inicialização:', e);
       }
       document.getElementById('loadingBar').classList.remove('show');
-      preencherSelect();   // chamado UMA única vez
-      iniciarMapaAM();     // chamado UMA única vez
+      preencherSelect();
+      iniciarMapaAM();
     });
 
     // ========== PLANILHA — CSV export sem API key ==========
+    // Normaliza nome para lookup (sem acento, uppercase)
+    const normNome = s => String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+
+    // Carrega dados embarcados — sem latência de rede, 100% offline
     async function carregarPlanilha() {
-      try {
-        const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
-        const resp = await fetch(url);
-        if (!resp.ok) { console.warn('Planilha HTTP:', resp.status); return; }
-        const text = await resp.text();
-        processarPlanilha(parseCSV(text));
-      } catch(e) {
-        console.error('Erro ao carregar planilha:', e);
-      }
-    }
-
-    function parseCSV(text) {
-      const rows = [];
-      const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const row = []; let cur = '', inQ = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"') inQ = !inQ;
-          else if (ch === ',' && !inQ) { row.push(cur.trim()); cur = ''; }
-          else cur += ch;
-        }
-        row.push(cur.trim());
-        rows.push(row);
-      }
-      return rows;
-    }
-
-    function processarPlanilha(values) {
-      if (!values || values.length < 2) { console.warn('Planilha: dados insuficientes'); return; }
-      const norm = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      const cab = values[0].map(norm);
-      console.log('Cabeçalho planilha:', values[0]);
-      const COLS = { municipio:0, ibge:1, populacao:2, territorio:3, densidade:4, extensao:5, kmhab:6, pib:7, idh:8 };
-      cab.forEach((c,i) => {
-        if (c.includes('municipio'))    COLS.municipio  = i;
-        else if (c.includes('ibge'))    COLS.ibge       = i;
-        else if (c.includes('populac')) COLS.populacao  = i;
-        else if (c.includes('area'))    COLS.territorio = i;
-        else if (c.includes('dens'))    COLS.densidade  = i;
-        else if (c.includes('extens'))  COLS.extensao   = i;
-        else if (c.includes('pib'))     COLS.pib        = i;
-        else if (c.includes('idh'))     COLS.idh        = i;
-      });
-      values.slice(1).forEach(l => {
-        const nome = String(l[COLS.municipio]||'').trim();
-        if (!nome) return;
-        dadosMunicipios[nome] = {
-          ibge:       String(l[COLS.ibge]       ||'').trim(),
-          populacao:  String(l[COLS.populacao]  ||'').trim(),
-          territorio: String(l[COLS.territorio] ||'').trim(),
-          densidade:  String(l[COLS.densidade]  ||'').trim(),
-          extensao:   String(l[COLS.extensao]   ||'').trim(),
-          pib:        String(l[COLS.pib]        ||'').trim(),
-          idh:        String(l[COLS.idh]        ||'').trim(),
+      Object.entries(DADOS_MUNICIPIOS).forEach(([chave, d]) => {
+        dadosMunicipios[chave] = {
+          nomeOriginal: d.nome,
+          ibge:       d.ibge  || '',
+          populacao:  d.pop   || '',
+          territorio: d.area  || '',
+          densidade:  d.dens  || '',
+          extensao:   d.ext   || '',
+          pib:        d.pib   || '',
+          idh:        d.idh   || '',
         };
       });
-      console.log(`✅ Planilha: ${Object.keys(dadosMunicipios).length} municípios`);
+      console.log(`✅ Dados: ${Object.keys(dadosMunicipios).length} municípios carregados (embarcados)`);
     }
 
     // ========== GEOJSON ==========
@@ -498,20 +466,15 @@
         for (const extra of EXTRAS) {
           try {
             const r = await fetch(extra.url);
-            if (!r.ok) continue;
+            if (!r.ok) { console.warn(`⚠️ Ruas extra não carregadas: ${extra.nome}`); continue; }
             const data = await r.json();
-            let polygon = null;
-            try {
-              const ri = await fetch(`https://servicodados.ibge.gov.br/api/v3/malhas/municipios/${extra.cod}?formato=application/vnd.geo+json&qualidade=minima`);
-              if (ri.ok) {
-                const ib = await ri.json();
-                if (ib.features?.[0]) {
-                  polygon = { ...ib.features[0], properties:{ name: extra.nome } };
-                  console.log(`✅ IBGE polygon: ${extra.nome} (${ib.features[0].geometry.type})`);
-                }
-              }
-            } catch(e) { console.warn(`⚠️ IBGE falhou: ${extra.nome}`); }
-            if (!polygon) polygon = criarPoligonoBbox(extra.nome, data.features);
+            // Usa polígono pré-calculado (convex hull das ruas) — sem API IBGE, sem erro de código errado
+            const ring = EXTRAS_POLIGONOS[extra.nome];
+            const polygon = {
+              type: 'Feature',
+              properties: { name: extra.nome },
+              geometry: { type: 'Polygon', coordinates: [ring] }
+            };
             geoJsonPoligonos?.features.push(polygon);
             geoJsonRuas?.features.push(...data.features);
             console.log(`✅ Extra: ${extra.nome} — ${data.features.length} ruas`);
@@ -630,14 +593,8 @@
 
     // ========== EXIBIR MUNICÍPIO ==========
     function mostrarMunicipio(nome) {
-      const dados = (() => {
-        if (dadosMunicipios[nome]) return dadosMunicipios[nome];
-        const k = Object.keys(dadosMunicipios).find(k=>
-          k.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()===
-          nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
-        );
-        return k ? dadosMunicipios[k] : {};
-      })();
+      // Lookup normalizado — planilha usa MAIÚSCULAS, GeoJSON usa Caixa Mista
+      const dados = dadosMunicipios[normNome(nome)] || {};
 
       const ruas = getRuasMunicipio(nome);
       let extM = 0;
@@ -648,15 +605,16 @@
       document.getElementById('munNome').textContent = nome;
       document.getElementById('munIbge').textContent = dados.ibge ? `Código IBGE: ${dados.ibge}` : 'Código IBGE: não informado';
 
-      const nd = (v,s='') => v ? `${v}${s}` : '<span class="nd">—</span>';
+      const nd = (v,s='') => (v && v !== '0' && v !== '') ? `${v}${s}` : '<span class="nd">—</span>';
+      const fmtPop = v => v ? parseInt(v).toLocaleString('pt-BR') : '';
       document.getElementById('statsGrid').innerHTML = `
         <div class="stat-box"><div class="stat-box-value">${ruas.length}</div><div class="stat-box-label">Ruas Mapeadas</div></div>
         <div class="stat-box"><div class="stat-box-value">${extKm}</div><div class="stat-box-label">Extensão Total (km)</div></div>
         <div class="stat-box"><div class="stat-box-value sm">${nd(dados.territorio,' km²')}</div><div class="stat-box-label">Território Municipal</div></div>
-        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.populacao)}</div><div class="stat-box-label">Habitantes</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(fmtPop(dados.populacao))}</div><div class="stat-box-label">Habitantes</div></div>
         <div class="stat-box"><div class="stat-box-value sm">${nd(dados.densidade,' hab/km²')}</div><div class="stat-box-label">Densidade Demográfica</div></div>
         <div class="stat-box"><div class="stat-box-value sm">${nd(dados.idh)}</div><div class="stat-box-label">IDH</div></div>
-        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.pib)}</div><div class="stat-box-label">PIB</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.pib)}</div><div class="stat-box-label">PIB Municipal</div></div>
       `;
 
       document.getElementById('buscaRua').value = '';
