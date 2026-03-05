@@ -395,17 +395,18 @@
     const GEOJSON_RUAS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS3.geojson';
     const GEOJSON_POLS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS2.geojson';
 
-    // Polígonos pré-calculados via convex hull das próprias ruas (elimina IBGE API)
+    // Autazes: convex hull das ruas (funciona bem — área urbana representativa)
+    // Careiro + Careiro da Várzea: polígono real buscado da API IBGE no browser
+    // (códigos verificados por cruzamento de coordenadas das ruas com centroide IBGE)
     const EXTRAS_POLIGONOS = {
-      'Autazes':           [[-59.145266,-3.58542],[-59.13223,-3.633172],[-59.131971,-3.633706],[-59.131295,-3.634824],[-59.104517,-3.669858],[-59.098975,-3.676587],[-59.098547,-3.677091],[-59.097837,-3.677422],[-59.096781,-3.677892],[-59.096072,-3.678034],[-59.092397,-3.677086],[-59.109482,-3.577255],[-59.111719,-3.574719],[-59.114958,-3.571072],[-59.118791,-3.570984],[-59.125926,-3.572754],[-59.130431,-3.574491],[-59.135376,-3.578091],[-59.145266,-3.58542]],
-      'Careiro':           [[-60.370926,-3.820368],[-60.364773,-3.827076],[-60.364293,-3.827366],[-60.358055,-3.823353],[-60.356462,-3.822281],[-60.354983,-3.821226],[-60.347407,-3.815333],[-60.353505,-3.809981],[-60.355496,-3.808671],[-60.360702,-3.808405],[-60.361165,-3.80878],[-60.36879,-3.817075],[-60.370454,-3.819094],[-60.370926,-3.820368]],
-      'Careiro da Várzea': [[-59.848721,-3.189432],[-59.845516,-3.191047],[-59.843123,-3.192094],[-59.840274,-3.193307],[-59.834668,-3.195535],[-59.833525,-3.195957],[-59.830873,-3.196921],[-59.824814,-3.199114],[-59.812876,-3.202946],[-59.812506,-3.203045],[-59.80193,-3.205052],[-59.741303,-3.214958],[-59.740262,-3.215115],[-59.739436,-3.215235],[-59.738962,-3.215285],[-59.735941,-3.215384],[-59.709947,-3.214448],[-59.708044,-3.214117],[-59.705602,-3.213536],[-59.671239,-3.204971],[-59.848721,-3.189432]]
+      'Autazes': [[-59.145266,-3.58542],[-59.13223,-3.633172],[-59.131971,-3.633706],[-59.131295,-3.634824],[-59.104517,-3.669858],[-59.098975,-3.676587],[-59.098547,-3.677091],[-59.097837,-3.677422],[-59.096781,-3.677892],[-59.096072,-3.678034],[-59.092397,-3.677086],[-59.109482,-3.577255],[-59.111719,-3.574719],[-59.114958,-3.571072],[-59.118791,-3.570984],[-59.125926,-3.572754],[-59.130431,-3.574491],[-59.135376,-3.578091],[-59.145266,-3.58542]]
     };
     const EXTRAS = [
-      { nome: 'Autazes',           url: BASE_URL + 'Autazes.geojson' },
-      { nome: 'Careiro',           url: BASE_URL + 'Careiro.geojson' },
-      { nome: 'Careiro da Várzea', url: BASE_URL + 'Careiro_da_Varzea.geojson' },
+      { nome: 'Autazes',           url: BASE_URL + 'Autazes.geojson',          ibgeCod: null },
+      { nome: 'Careiro',           url: BASE_URL + 'Careiro.geojson',           ibgeCod: '1301100' },
+      { nome: 'Careiro da Várzea', url: BASE_URL + 'Careiro_da_Varzea.geojson', ibgeCod: '1301159' },
     ];
+    const IBGE_MALHAS = 'https://servicodados.ibge.gov.br/api/v3/malhas/municipios/';
 
     // ========== STATE ==========
     let dadosMunicipios  = {};
@@ -468,13 +469,37 @@
             const r = await fetch(extra.url);
             if (!r.ok) { console.warn(`⚠️ Ruas extra não carregadas: ${extra.nome}`); continue; }
             const data = await r.json();
-            // Usa polígono pré-calculado (convex hull das ruas) — sem API IBGE, sem erro de código errado
-            const ring = EXTRAS_POLIGONOS[extra.nome];
-            const polygon = {
-              type: 'Feature',
-              properties: { name: extra.nome },
-              geometry: { type: 'Polygon', coordinates: [ring] }
-            };
+
+            let polygon = null;
+
+            // Careiro e Careiro da Várzea: busca polígono real na API IBGE (browser tem acesso)
+            if (extra.ibgeCod) {
+              try {
+                const urlIbge = `${IBGE_MALHAS}${extra.ibgeCod}?formato=application/vnd.geo+json&qualidade=minima`;
+                const ri = await fetch(urlIbge);
+                if (ri.ok) {
+                  const ib = await ri.json();
+                  if (ib.features?.[0]) {
+                    polygon = { ...ib.features[0], properties: { name: extra.nome } };
+                    console.log(`✅ IBGE polígono: ${extra.nome} (${ib.features[0].geometry.type})`);
+                  }
+                }
+              } catch(e) { console.warn(`⚠️ IBGE falhou para ${extra.nome}, usando bbox:`, e.message); }
+            }
+
+            // Fallback: convex hull pré-calculado (Autazes) ou bbox (se IBGE falhar)
+            if (!polygon) {
+              const ring = EXTRAS_POLIGONOS[extra.nome];
+              if (ring) {
+                polygon = { type: 'Feature', properties: { name: extra.nome },
+                  geometry: { type: 'Polygon', coordinates: [ring] } };
+                console.log(`✅ Convex hull: ${extra.nome}`);
+              } else {
+                polygon = criarPoligonoBbox(extra.nome, data.features);
+                console.log(`⚠️ Bbox fallback: ${extra.nome}`);
+              }
+            }
+
             geoJsonPoligonos?.features.push(polygon);
             geoJsonRuas?.features.push(...data.features);
             console.log(`✅ Extra: ${extra.nome} — ${data.features.length} ruas`);
