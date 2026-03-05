@@ -404,47 +404,57 @@
 
     function processarPlanilha(values) {
       if (!values || values.length < 2) return;
-      const cab = values[0].map(c => c.toLowerCase().trim());
-      const linhas = values.slice(1);
 
-      // Cabeçalho real da aba indicadores_municipais:
-      // [A=municipio sem header] | codigo_ibge | populacao | area_km2 | densidade_demografica
-      // extensao_viaria_km | km_por_habitante | pib_municipal | idh | regiao_imediata
-      // ATENÇÃO: coluna A pode não ter cabeçalho — forçamos índice 0 para município
-      const idx = {
-        municipio:  cab.findIndex(c => c.includes('municipio') || c.includes('município')),
-        ibge:       cab.findIndex(c => c.includes('ibge')),
-        populacao:  cab.findIndex(c => c.includes('populacao') || c.includes('população')),
-        territorio: cab.findIndex(c => c.includes('area') || c.includes('área')),
-        densidade:  cab.findIndex(c => c.includes('dens')),
-        extensao:   cab.findIndex(c => c.includes('extensao') || c.includes('extensão')),
-        pib:        cab.findIndex(c => c.includes('pib')),
-        idh:        cab.findIndex(c => c.includes('idh')),
+      // Detecta posição das colunas pelo cabeçalho, com fallback para posição fixa
+      // Estrutura conhecida: municipio|codigo_ibge|populacao|area_km2|densidade_demografica|extensao_viaria_km|km_por_habitante|pib_municipal|idh|regiao_imediata
+      const cab = values[0].map(c => String(c).toLowerCase().trim());
+      console.log('Cabeçalho raw:', values[0]);
+
+      // Posições fixas como fallback (baseado na estrutura real da planilha)
+      const COLS = {
+        municipio:  0,  // coluna A — sempre primeira, mesmo sem cabeçalho
+        ibge:       1,  // codigo_ibge
+        populacao:  2,  // populacao
+        territorio: 3,  // area_km2
+        densidade:  4,  // densidade_demografica
+        extensao:   5,  // extensao_viaria_km
+        kmhab:      6,  // km_por_habitante
+        pib:        7,  // pib_municipal
+        idh:        8,  // idh
+        regiao:     9,  // regiao_imediata
       };
 
-      // Se coluna de município não tem cabeçalho (vazio, '0', número), usa coluna 0
-      if (idx.municipio < 0 || isNaN(Number(cab[0])) === false || cab[0] === '' || cab[0] === '0') {
-        idx.municipio = 0;
-      }
+      // Tenta detectar pelo cabeçalho, sobrescreve se encontrar
+      cab.forEach((c, i) => {
+        if (c.includes('municipio') || c.includes('município')) COLS.municipio = i;
+        else if (c.includes('ibge')) COLS.ibge = i;
+        else if (c.includes('populacao') || c.includes('população')) COLS.populacao = i;
+        else if (c.includes('area') || c.includes('área')) COLS.territorio = i;
+        else if (c.includes('dens')) COLS.densidade = i;
+        else if (c.includes('extensao') || c.includes('extensão')) COLS.extensao = i;
+        else if (c.includes('pib')) COLS.pib = i;
+        else if (c.includes('idh')) COLS.idh = i;
+      });
 
-      console.log('Cabeçalho:', cab);
-      console.log('Índices:', idx);
+      console.log('Colunas detectadas:', COLS);
 
+      const linhas = values.slice(1);
       linhas.forEach(linha => {
-        const nome = (linha[idx.municipio] || '').trim();
+        const nome = String(linha[COLS.municipio] || '').trim();
         if (!nome) return;
         dadosMunicipios[nome] = {
-          ibge:       idx.ibge       >= 0 ? linha[idx.ibge]       || '' : '',
-          populacao:  idx.populacao  >= 0 ? linha[idx.populacao]  || '' : '',
-          territorio: idx.territorio >= 0 ? linha[idx.territorio] || '' : '',
-          densidade:  idx.densidade  >= 0 ? linha[idx.densidade]  || '' : '',
-          extensao:   idx.extensao   >= 0 ? linha[idx.extensao]   || '' : '',
-          pib:        idx.pib        >= 0 ? linha[idx.pib]        || '' : '',
-          idh:        idx.idh        >= 0 ? linha[idx.idh]        || '' : '',
+          ibge:       String(linha[COLS.ibge]       || '').trim(),
+          populacao:  String(linha[COLS.populacao]  || '').trim(),
+          territorio: String(linha[COLS.territorio] || '').trim(),
+          densidade:  String(linha[COLS.densidade]  || '').trim(),
+          extensao:   String(linha[COLS.extensao]   || '').trim(),
+          pib:        String(linha[COLS.pib]        || '').trim(),
+          idh:        String(linha[COLS.idh]        || '').trim(),
         };
       });
 
-      console.log(`✅ Planilha: ${Object.keys(dadosMunicipios).length} municípios`);
+      console.log('✅ Planilha: ' + Object.keys(dadosMunicipios).length + ' municípios carregados');
+      console.log('Exemplo:', Object.keys(dadosMunicipios)[0], dadosMunicipios[Object.keys(dadosMunicipios)[0]]);
       if (geoJsonPoligonos) preencherSelect();
       else setTimeout(preencherSelect, 2000);
     }
@@ -657,11 +667,17 @@
 
     // ========== EXIBIR MUNICÍPIO ==========
     function mostrarMunicipio(nome) {
-      // Tenta match direto, depois uppercase, depois case-insensitive
-      const dados = dadosMunicipios[nome] 
-        || dadosMunicipios[nome.toUpperCase()] 
-        || dadosMunicipios[Object.keys(dadosMunicipios).find(k => k.toUpperCase() === nome.toUpperCase()) || '']
-        || {};
+      // Match: direto → uppercase → case-insensitive → sem acentos
+      const _buscarDados = (n) => {
+        if (dadosMunicipios[n]) return dadosMunicipios[n];
+        if (dadosMunicipios[n.toUpperCase()]) return dadosMunicipios[n.toUpperCase()];
+        const chave = Object.keys(dadosMunicipios).find(k => 
+          k.toUpperCase() === n.toUpperCase() ||
+          k.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase() === n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+        );
+        return chave ? dadosMunicipios[chave] : {};
+      };
+      const dados = _buscarDados(nome);
       const ruas  = getRuasMunicipio(nome);
 
       // Calcular extensão total
