@@ -390,8 +390,9 @@
       const linhas = values.slice(1);
 
       // Cabeçalho real da aba indicadores_municipais:
-      // municipio | codigo_ibge | populacao | area_km2 | densidade_demografica
+      // [A=municipio sem header] | codigo_ibge | populacao | area_km2 | densidade_demografica
       // extensao_viaria_km | km_por_habitante | pib_municipal | idh | regiao_imediata
+      // ATENÇÃO: coluna A pode não ter cabeçalho — forçamos índice 0 para município
       const idx = {
         municipio:  cab.findIndex(c => c.includes('municipio') || c.includes('município')),
         ibge:       cab.findIndex(c => c.includes('ibge')),
@@ -403,11 +404,14 @@
         idh:        cab.findIndex(c => c.includes('idh')),
       };
 
+      // Se coluna de município não tem cabeçalho, usa coluna 0 por padrão
+      if (idx.municipio < 0) idx.municipio = 0;
+
       console.log('Cabeçalho:', cab);
       console.log('Índices:', idx);
 
       linhas.forEach(linha => {
-        const nome = idx.municipio >= 0 ? (linha[idx.municipio] || '').trim() : '';
+        const nome = (linha[idx.municipio] || '').trim();
         if (!nome) return;
         dadosMunicipios[nome] = {
           ibge:       idx.ibge       >= 0 ? linha[idx.ibge]       || '' : '',
@@ -629,7 +633,11 @@
 
     // ========== EXIBIR MUNICÍPIO ==========
     function mostrarMunicipio(nome) {
-      const dados = dadosMunicipios[nome] || {};
+      // Tenta match direto, depois uppercase, depois case-insensitive
+      const dados = dadosMunicipios[nome] 
+        || dadosMunicipios[nome.toUpperCase()] 
+        || dadosMunicipios[Object.keys(dadosMunicipios).find(k => k.toUpperCase() === nome.toUpperCase()) || '']
+        || {};
       const ruas  = getRuasMunicipio(nome);
 
       // Calcular extensão total
