@@ -467,6 +467,70 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  AKE — AXIOMATIC KERNEL ENGINE · UNIFIED FIELD THEORY                   ║
+    // ║  Protocolo: UFT-1.0 · Perfil Híbrido · Library interna + GeoJSON ext.  ║
+    // ╠══════════════════════════════════════════════════════════════════════════╣
+    // ║  @domain    Viário Municipal — Sistemas Viários do Amazonas (62 mun.)   ║
+    // ║  @author    Paulo Esteves Fernandes Neto — Chefe DMOB/SEINFRA-AM        ║
+    // ║  @version   1.0.0-ake                                                   ║
+    // ║  @build     GENESIS_RETROFIT                                            ║
+    // ║  @created   2026-03-24                                                  ║
+    // ║  @repo      github.com/leonzordhue/dmob-viario                          ║
+    // ║                                                                          ║
+    // ║  CLASSIFICAÇÃO AKE:                                                      ║
+    // ║    Perfil:        Híbrido (Library interna: 62 mun. IBGE | GeoJSON ext.)║
+    // ║    Camada 1 (Library):   DADOS_MUNICIPIOS embutido (soberano) +          ║
+    // ║                          GeoJSONs de ruas/polígonos via GitHub (externo) ║
+    // ║    Camada 2 (Logic):     pointInPolygon(), getRuasMunicipio(),           ║
+    // ║                          criarPoligonoBbox(), normNome()                 ║
+    // ║    Camada 4 (Log):       AKE_BUILD_LOG ativo                            ║
+    // ║    Camada 6 (UI):        Leaflet + IBGE malhas + select + detalhes      ║
+    // ║                                                                          ║
+    // ║  ⚠ NOTA AKE-SOV: Parcialmente soberano. Indicadores municipais são      ║
+    // ║  embutidos (offline). Geometrias dependem do GitHub + API IBGE.          ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+
+    // ============================================================================
+    // CAMADA 4 — LOG ENGINE
+    // ============================================================================
+    var AKE_BUILD_LOG = [{
+      build: "1.0.0-ake",
+      data: "2026-03-24T10:30:00-04:00",
+      autor: "Paulo Esteves Fernandes Neto",
+      ia_assistente: "Claude Opus 4.6",
+      tipo: "GENESIS_RETROFIT",
+      descricao: "Retrofit AKE no index_viário.html. Perfil Híbrido — dados IBGE embutidos + GeoJSONs externos.",
+      estado_pre_retrofit: { linhas: 793, dados: "62 municípios IBGE embutidos + 3 GeoJSONs GitHub + API IBGE malhas" },
+      axiomas_identificados: [
+        "DADOS_MUNICIPIOS{} — Library soberana: 62 municípios com pop, área, PIB, IDH, extensão viária",
+        "normNome() — Normalização de topônimos (NFD + strip diacríticos + uppercase)",
+        "pointInPolygon() — Ray casting para teste ponto-em-polígono",
+        "getOuterRing() — Extração de anel externo de geometrias Multi/Polygon",
+        "getRuasMunicipio() — Filtragem de features viárias por polígono municipal",
+        "criarPoligonoBbox() — Geração de bounding box como polígono fallback"
+      ],
+      tentativas_falhas: [],
+      erros_corrigidos: []
+    }];
+
+    // ============================================================================
+    // CAMADA 1 — THE LIBRARY (Conhecimento Estático — Soberano)
+    // ============================================================================
+
+    /**
+     * @meta Indicadores municipais do Amazonas — Library soberana
+     * @source IBGE — Censo 2022, PIB dos Municípios, Atlas IDH
+     *         Extensão viária: levantamento DMOB/SEINFRA-AM
+     * @fields nome: Designação oficial | ibge: Código IBGE 7 dígitos |
+     *         pop: População (Censo 2022) | area: Área territorial km² |
+     *         dens: Densidade demográfica hab/km² | ext: Extensão viária km |
+     *         pib: PIB municipal | idh: IDH-M (Atlas Brasil)
+     * @coverage 62 municípios do Amazonas (exceto Manaus para alguns indicadores)
+     * @responsible Paulo E. F. Neto — DMOB/SEINFRA-AM
+     * @sovereignty SOBERANO — dados embutidos, zero dependência externa
+     * @ake_rule AKE-LIB-001
+     */
     // ========== CONFIG ==========
     // Dados dos 62 municípios embarcados diretamente — sem dependência de API
     // Gerado automaticamente a partir da planilha indicadores_municipais
