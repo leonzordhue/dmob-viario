@@ -1,0 +1,870 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1A2B5E" />
+  <!-- DMOB v2 -->
+  <title>Viário Municipal — DMOB/SEINFRA-AM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Lexend+Deca:wght@300;400;500;600;700;800;900&family=Lexend+Zetta:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --azul: #1A2B5E;
+      --azul-hover: #152347;
+      --azul-claro:  #EBF0FA;
+      --azul-borda:  #C4D0E8;
+      --amarelo:     #F5A623;
+      --amarelo-cl:  #FEF3DC;
+      --amarelo-brd: #F5C878;
+      --verde: #2D8540;
+      --verde-cl: #E8F5EC;
+      --cinza-txt:   #1A2540;
+      --cinza-med:   #4A5568;
+      --cinza-aux:   #8896A8;
+      --cinza-bg:    #F5F7FB;
+      --borda:       #E0E6F0;
+      --branco:      #FFFFFF;
+      --font: 'Lexend Deca', 'Outfit', sans-serif;
+      --shadow:      0 2px 16px rgba(26,43,94,0.09), 0 0 0 1px var(--borda);
+      --azul-mid: #1E3575;
+      --verde-gov: #2D8540;
+      --verde-brd: rgba(45,133,64,0.28);
+      --font-head: 'Lexend Zetta', 'Outfit', sans-serif;
+      --font-cond: 'Barlow Condensed', 'Outfit', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--cinza-bg); color: var(--cinza-txt); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+    ::selection { background: rgba(26,43,94,0.14); }
+
+    /* TOPBAR */
+    .topbar { background: var(--azul); padding: 0.5rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-left { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.55); font-weight: 500; }
+    .topbar-right { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--amarelo); display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amarelo); box-shadow: 0 0 8px var(--amarelo); animation: pulse 2s ease-in-out infinite; }
+
+    /* HEADER */
+    .site-header { background: var(--branco); border-bottom: 2px solid var(--azul); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 20px rgba(26,43,94,0.08); }
+    .header-brand { display: flex; align-items: center; gap: 0.9rem; }
+    .brand-escudo { width: 44px; height: 44px; border-radius: 8px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+    .brand-sup { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cinza-aux); }
+    .brand-name { font-size: 1.05rem; font-weight: 800; color: var(--azul); }
+    .brand-name span { color: var(--amarelo); }
+    .header-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--azul); background: var(--azul-claro); border: 1.5px solid var(--azul-borda); padding: 0.4em 1em; border-radius: 100px; }
+    @media (max-width: 600px) { .header-badge { display: none; } }
+
+    /* HERO */
+    .page-hero { background: var(--azul); padding: 2.5rem 2rem; position: relative; overflow: hidden; }
+    .page-hero::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-50deg, transparent, transparent 48px, rgba(255,255,255,0.02) 48px, rgba(255,255,255,0.02) 49px); }
+    .page-hero-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--amarelo), transparent); }
+    .page-hero-inner { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; }
+    .page-hero-eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--amarelo); margin-bottom: 0.6rem; }
+    .page-hero-title { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 900; color: var(--branco); letter-spacing: -0.02em; line-height: 1.1; }
+    .page-hero-sub { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-top: 0.5rem; }
+    .hero-wave { overflow: hidden; line-height: 0; }
+    .hero-wave svg { display: block; width: 100%; }
+
+    /* MAIN */
+    .main-wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+
+    /* CARDS */
+    .card { background: var(--branco); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 1.5rem; }
+    .card-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--borda); background: var(--azul-claro); display: flex; align-items: center; gap: 0.75rem; }
+    .card-header-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .card-header-title { font-size: 0.95rem; font-weight: 700; color: var(--azul); }
+    .card-body { padding: 1.75rem; }
+
+    /* FORM */
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--cinza-med); }
+    select {
+      font-family: var(--font); font-size: 0.92rem; font-weight: 500;
+      color: var(--cinza-txt); background: var(--branco);
+      border: 1.5px solid var(--borda); border-radius: 8px;
+      padding: 0.7rem 2.5rem 0.7rem 1rem; outline: none; cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238896A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 1rem center; width: 100%;
+    }
+    select:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(26,43,94,0.1); }
+
+    /* LOADING */
+    .loading-bar { display: none; align-items: center; gap: 0.75rem; padding: 1rem 1.75rem; background: var(--azul-claro); border-top: 1px solid var(--azul-borda); font-size: 0.85rem; color: var(--azul); font-weight: 600; }
+    .loading-bar.show { display: flex; }
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--azul-borda); border-top-color: var(--azul); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+
+    /* RESULTADO */
+    .resultado-card { display: none; }
+    .resultado-card.show { display: block; }
+
+    /* HEADER DO MUNICÍPIO */
+    .mun-header {
+      background: linear-gradient(135deg, var(--azul) 0%, #003d99 100%);
+      border-radius: 10px;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .mun-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(-45deg, transparent, transparent 30px, rgba(255,255,255,0.015) 30px, rgba(255,255,255,0.015) 31px);
+    }
+    .mun-header-inner { position: relative; z-index: 1; }
+    .mun-nome { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 900; color: #fff; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+    .mun-ibge { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-box { background: var(--azul-claro); border: 1px solid var(--azul-borda); border-radius: 10px; padding: 1.1rem 1.25rem; text-align: center; }
+    .stat-box-value { font-size: 1.5rem; font-weight: 900; color: var(--azul); letter-spacing: -0.03em; line-height: 1; }
+    .stat-box-value.sm { font-size: 1.1rem; }
+    .stat-box-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cinza-aux); margin-top: 0.3rem; }
+
+    /* TABELA */
+    .table-section-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cinza-med); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--borda); }
+    .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .table-search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+    .table-search-wrap input { font-family: var(--font); font-size: 0.85rem; width: 100%; padding: 0.55rem 0.85rem 0.55rem 2.2rem; border: 1.5px solid var(--borda); border-radius: 8px; outline: none; color: var(--cinza-txt); transition: border-color 0.2s, box-shadow 0.2s; background: var(--branco); }
+    .table-search-wrap input:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(26,43,94,0.09); }
+    .table-search-wrap input::placeholder { color: var(--cinza-aux); }
+    .table-search-icon { position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%); color: var(--cinza-aux); pointer-events: none; font-size: 0.85rem; }
+    .table-count { font-size: 0.72rem; font-weight: 600; color: var(--cinza-aux); white-space: nowrap; }
+    .table-count span { color: var(--azul); font-weight: 700; }
+    tr.hidden-row { display: none; }
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--borda); margin-bottom: 1.5rem; max-height: 360px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead { background: var(--azul); position: sticky; top: 0; z-index: 2; }
+    thead th { padding: 0.8rem 1rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.9); text-align: left; }
+    tbody tr { border-bottom: 1px solid var(--borda); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--azul-claro); }
+    tbody td { padding: 0.75rem 1rem; color: var(--cinza-txt); }
+    tbody td:first-child { font-weight: 600; color: var(--azul); }
+    .badge-ext { display: inline-block; background: var(--azul-claro); border: 1px solid var(--azul-borda); color: var(--azul); font-size: 0.68rem; font-weight: 700; padding: 0.15em 0.6em; border-radius: 100px; }
+
+    /* MAPA */
+    .map-section { border-top: 1px solid var(--borda); padding-top: 1.5rem; }
+    .map-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cinza-med); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+    .map-wrapper { border-radius: 12px; overflow: hidden; border: 1.5px solid var(--borda); box-shadow: 0 4px 20px rgba(26,43,94,0.08); position: relative; }
+    .map-toolbar { background: var(--branco); border-bottom: 1px solid var(--borda); padding: 0.65rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .map-toolbar-info { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .map-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.25em 0.8em; border-radius: 100px; }
+    .map-badge.azul { background: var(--azul); color: #fff; }
+    .map-badge.verde { background: var(--verde-cl); border: 1px solid rgba(0,123,62,0.25); color: var(--verde); }
+    .map-toolbar-actions { display: flex; gap: 0.45rem; }
+    .map-action-btn { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font); font-size: 0.72rem; font-weight: 700; color: var(--azul); text-decoration: none; background: var(--azul-claro); border: 1.5px solid var(--azul-borda); padding: 0.38em 0.85em; border-radius: 100px; cursor: pointer; transition: background 0.15s, transform 0.15s; white-space: nowrap; }
+    .map-action-btn:hover { background: var(--azul-borda); transform: translateY(-1px); }
+    #leaflet-map { width: 100%; height: 480px; background: #e8eef5; }
+    .map-legend { background: var(--branco); border-top: 1px solid var(--borda); padding: 0.55rem 1rem; display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; font-size: 0.68rem; color: var(--cinza-med); font-weight: 600; }
+    .legend-line { width: 20px; height: 3px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+    .map-loading-overlay { position: absolute; inset: 0; background: rgba(245,247,251,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; z-index: 999; }
+    .map-loading-overlay.hidden { display: none; }
+    .map-loading-text { font-size: 0.85rem; font-weight: 600; color: var(--azul); }
+
+    /* DADOS NÃO DISPONÍVEIS */
+    .nd { color: var(--cinza-aux); font-style: italic; }
+
+    /* FOOTER */
+    .site-footer { background: var(--branco); border-top: 2px solid var(--azul); padding: 1.75rem 2rem; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    .footer-brand { display: flex; align-items: center; gap: 0.75rem; }
+    .footer-icon { width: 34px; height: 34px; border-radius: 6px; background: var(--azul); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .footer-name { font-size: 0.9rem; font-weight: 800; color: var(--azul); }
+    .footer-name span { color: var(--amarelo); }
+    .footer-sub { font-size: 0.65rem; color: var(--cinza-aux); }
+    .footer-copy { font-size: 0.68rem; color: var(--cinza-aux); }
+
+    /* MAPA AM */
+    #mapa-am { cursor: pointer; }
+    .municipio-label {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .municipio-label div {
+      font-family: var(--font);
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--azul);
+      text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+  
+    
+    
+    /* IDENTIDADE SEINFRA 2026 — TOPBAR HEADER FOOTER (override do legado) */
+    .topbar-gov { background: var(--azul); padding: 0.35rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-gov-text { font-family: var(--font-cond); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+    .topbar-gov-live { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-cond); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amarelo); }
+    .topbar-gov .topbar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amarelo); animation: pulse 2s ease-in-out infinite; }
+    header.site-header { background: #fff; padding: 0.85rem 2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 2.5px solid var(--azul); position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 20px rgba(26,43,94,0.08); }
+    header.site-header .header-brand { display: flex; align-items: center; gap: 1.1rem; }
+    .brand-gov { display: flex; align-items: center; gap: 0.65rem; }
+    .brand-brasao { height: 50px; width: auto; display: block; }
+    .brand-gov-text { display: flex; flex-direction: column; line-height: 1; gap: 0.1rem; }
+    .brand-gov-label { font-family: var(--font-cond); font-size: 0.7rem; font-weight: 700; color: var(--verde); letter-spacing: 0.12em; text-transform: uppercase; }
+    .brand-gov-estado { font-family: var(--font-cond); font-size: 1.45rem; font-weight: 900; color: var(--azul); letter-spacing: 0.02em; line-height: 1; }
+    .brand-gov-slogan { font-family: var(--font-cond); font-size: 0.6rem; font-weight: 600; color: var(--verde); letter-spacing: 0.15em; text-transform: uppercase; }
+    .brand-divider { width: 1.5px; height: 44px; background: linear-gradient(to bottom, transparent, var(--borda), transparent); margin: 0 0.2rem; flex-shrink: 0; }
+    .brand-seinfra { display: flex; flex-direction: column; line-height: 1.25; }
+    .brand-seinfra-pre { font-family: 'Lexend Deca', sans-serif; font-size: 0.7rem; font-weight: 400; color: var(--azul); }
+    .brand-seinfra-name { font-family: 'Lexend Zetta', sans-serif; font-size: 0.98rem; font-weight: 700; color: var(--azul); }
+    header.site-header .header-right { display: flex; align-items: center; gap: 0.7rem; }
+    .header-badge-gov { font-family: var(--font-cond); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--azul); padding: 0.35em 1.1em; border-radius: 100px; }
+    .header-live { display: flex; align-items: center; gap: 0.35rem; font-family: var(--font-cond); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--azul); opacity: 0.7; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #22C55E; box-shadow: 0 0 6px #22C55E; animation: pulse 2s ease-in-out infinite; }
+    footer.site-footer { background: var(--azul); color: rgba(255,255,255,0.6); padding: 1.5rem 2rem; margin-top: 3rem; border-top: none; }
+    footer.site-footer .footer-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: flex-start; gap: 2rem; flex-wrap: wrap; }
+    .footer-col { flex: 1; min-width: 0; }
+    .footer-item { font-family: var(--font-cond); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em; color: rgba(255,255,255,0.6); line-height: 1.9; }
+    .footer-vdiv { width: 1px; background: rgba(255,255,255,0.15); align-self: stretch; flex-shrink: 0; }
+    .footer-brand-wrap { text-align: right; white-space: nowrap; }
+    .footer-brand-pre { font-family: var(--font-cond); font-size: 0.7rem; font-weight: 400; color: rgba(255,255,255,0.5); letter-spacing: 0.08em; text-transform: uppercase; }
+    .footer-brand-nome { font-family: 'Lexend Zetta', sans-serif; font-size: 1.35rem; font-weight: 800; color: #fff; letter-spacing: -0.01em; line-height: 1.1; }
+    @media (max-width: 640px) {
+      header.site-header { padding: 0.55rem 1rem; }
+      .topbar-gov { padding: 0.35rem 1rem; }
+      .topbar-gov-text { display: none; }
+      .brand-brasao { height: 36px; }
+      .brand-gov-estado { font-size: 1.05rem; }
+      .brand-gov-label, .brand-gov-slogan { font-size: 0.55rem; }
+      .brand-seinfra-name { font-size: 0.82rem; }
+      .brand-seinfra-pre { display: none; }
+      .brand-divider { display: none; }
+      .header-badge-gov { display: none; }
+      .header-live { display: none; }
+      footer.site-footer .footer-inner { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+      .footer-vdiv { width: 100%; height: 1px; }
+      .footer-brand-wrap { text-align: left; }
+      footer.site-footer { padding: 1.2rem 1rem; }
+    }
+
+  </style>
+</head>
+<body>
+<!-- HEADER GOV/SEINFRA 2026 -->
+<div class="topbar-gov">
+  <span class="topbar-gov-text">DMOB — Departamento de Mobilidade · SEINFRA/AM · 2026</span>
+  <div class="topbar-gov-live"><div class="topbar-dot"></div>Online</div>
+</div>
+<header class="site-header">
+  <div class="header-brand">
+    <div class="brand-gov">
+      <img src="https://leonzordhue.github.io/atlas-amazonas/assets/brasao_am.png"
+           alt="Brasão do Amazonas" class="brand-brasao"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <div style="display:none;width:50px;height:50px;border-radius:8px;background:var(--azul);color:#fff;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">🦅</div>
+      <div class="brand-gov-text">
+        <div class="brand-gov-label">Governo do</div>
+        <div class="brand-gov-estado">Amazonas</div>
+        <div class="brand-gov-slogan">A Força da Nossa Gente</div>
+      </div>
+    </div>
+    <div class="brand-divider"></div>
+    <div class="brand-seinfra">
+      <div class="brand-seinfra-pre">Secretaria de</div>
+      <div class="brand-seinfra-name">Infraestrutura</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="header-badge-gov">Viário Urbano</span>
+    <div class="header-live"><div class="live-dot"></div>Online</div>
+  </div>
+</header>
+
+
+
+
+
+    
+
+  <div class="page-hero">
+    <div class="page-hero-accent"></div>
+    <div class="page-hero-inner">
+      <div class="page-hero-eyebrow">🏙️ DMOB — Departamento de Mobilidade</div>
+      <div class="page-hero-title">Sistemas Viários Municipais</div>
+      <div class="page-hero-sub">Consulta de municípios, ruas e traçados — SEINFRA/AM · 2026</div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,28 C360,46 720,8 1080,28 C1260,38 1380,20 1440,28 L1440,40 L0,40 Z" fill="#F5F7FB"/>
+    </svg>
+  </div>
+
+  <div class="main-wrap">
+
+    <!-- Mapa de seleção do Amazonas -->
+    <div class="card" id="cardMapaAM">
+      <div class="card-header">
+        <div class="card-header-icon">🗺️</div>
+        <div class="card-header-title">Selecione um Município no Mapa</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:0.5rem;">
+          <div class="form-group" style="margin:0;min-width:220px;">
+            <select id="selectMunicipio" style="font-size:0.8rem;padding:0.45rem 2rem 0.45rem 0.75rem;">
+              <option value="">Ou busque pelo nome...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div style="position:relative;">
+        <div id="mapa-am" style="width:100%;height:500px;background:#e8eef5;"></div>
+        <div class="map-loading-overlay" id="mapaAmOverlay">
+          <div class="spinner"></div>
+          <div class="map-loading-text">Carregando mapa do Amazonas...</div>
+        </div>
+      </div>
+      <div style="padding:0.6rem 1rem;background:var(--azul-claro);border-top:1px solid var(--azul-borda);font-size:0.72rem;color:var(--cinza-med);font-weight:600;">
+        🖱️ Clique em um município para ver as informações detalhadas
+      </div>
+      <div class="loading-bar" id="loadingBar">
+        <div class="spinner"></div>
+        Carregando base de dados...
+      </div>
+    </div>
+
+    <!-- Resultado -->
+    <div class="card resultado-card" id="resultadoCard">
+      <div class="card-header">
+        <div class="card-header-icon">🏙️</div>
+        <div class="card-header-title" id="resultadoTitulo">—</div>
+      </div>
+      <div class="card-body">
+
+        <!-- Header município -->
+        <div class="mun-header">
+          <div class="mun-header-inner">
+            <div class="mun-nome" id="munNome">—</div>
+            <div class="mun-ibge" id="munIbge">—</div>
+          </div>
+        </div>
+
+        <!-- Stats: dados do município -->
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <!-- Tabela de ruas -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+          <div class="table-section-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Ruas Mapeadas do Município</div>
+          <div class="table-count" id="tableCount"><span id="tableCountNum">—</span> ruas encontradas</div>
+        </div>
+        <div style="position:relative;margin-bottom:0.85rem;">
+          <svg style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.45;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A2B5E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            type="text"
+            id="buscaRua"
+            placeholder="Pesquisar rua pelo nome..."
+            oninput="filtrarRuas(this.value)"
+            style="
+              font-family:var(--font);font-size:0.9rem;font-weight:500;
+              width:100%;padding:0.75rem 3rem 0.75rem 2.75rem;
+              border:2px solid var(--azul-borda);border-radius:10px;
+              outline:none;color:var(--cinza-txt);background:var(--branco);
+              transition:border-color 0.2s,box-shadow 0.2s;
+              box-shadow:0 1px 6px rgba(26,43,94,0.06);
+            "
+            onfocus="this.style.borderColor='var(--azul)';this.style.boxShadow='0 0 0 3px rgba(26,43,94,0.12)'"
+            onblur="this.style.borderColor='var(--azul-borda)';this.style.boxShadow='0 1px 6px rgba(26,43,94,0.06)'"
+          />
+          <button
+            onclick="document.getElementById('buscaRua').value='';filtrarRuas('');"
+            id="btnLimparBusca"
+            title="Limpar busca"
+            style="
+              position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);
+              background:none;border:none;cursor:pointer;padding:0.25rem;
+              color:var(--cinza-aux);font-size:1rem;line-height:1;display:none;
+            "
+          >✕</button>
+        </div>
+        <script>
+          document.getElementById('buscaRua').addEventListener('input', function() {
+            document.getElementById('btnLimparBusca').style.display = this.value ? 'block' : 'none';
+          });
+        </script>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nome da Rua</th>
+                <th>Extensão</th>
+              </tr>
+            </thead>
+            <tbody id="ruasTbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Mapa -->
+        <div class="map-section">
+          <div class="map-label">Traçado Viário do Município</div>
+          <div class="map-wrapper">
+            <div class="map-toolbar">
+              <div class="map-toolbar-info" id="mapToolbarInfo">
+                <span class="map-badge azul" id="mapBadgeRuas">— ruas</span>
+                <span class="map-badge verde" id="mapBadgeExt">— km</span>
+              </div>
+              <div class="map-toolbar-actions">
+                <button class="map-action-btn" onclick="centralizarMapa()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                  Centralizar
+                </button>
+              </div>
+            </div>
+            <div style="position:relative;">
+              <div id="leaflet-map"></div>
+              <div class="map-loading-overlay" id="mapLoadingOverlay">
+                <div class="spinner"></div>
+                <div class="map-loading-text">Carregando traçado viário...</div>
+              </div>
+            </div>
+            <div class="map-legend">
+              <span><span class="legend-line" style="background:#F5A623;"></span>Rua mapeada</span>
+              <span style="margin-left:auto;color:var(--cinza-aux);font-weight:400;">© OpenStreetMap contributors</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER 2026 -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-col">
+      <div class="footer-item">www.seinfra.am.gov.br</div>
+      <div class="footer-item">Instagram: @seinfra.am</div>
+      <div class="footer-item">TikTok: @seinfra.am</div>
+      <div class="footer-item">facebook.com/seinfra.AM</div>
+    </div>
+    <div class="footer-vdiv"></div>
+    <div class="footer-col">
+      <div class="footer-item">gabinete@seinfra.am.gov.br</div>
+      <div class="footer-item">Fone: (92) 9 9263-0198</div>
+      <div class="footer-item">Av. Arq. José Henriques Bento Rodrigues, 3760</div>
+      <div class="footer-item">Monte das Oliveiras · Manaus/AM · CEP: 69093-149</div>
+    </div>
+    <div class="footer-vdiv"></div>
+    <div class="footer-brand-wrap">
+      <div class="footer-brand-pre">Secretaria de</div>
+      <div class="footer-brand-nome">Infraestrutura</div>
+    </div>
+  </div>
+</footer>
+
+
+
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  AKE — AXIOMATIC KERNEL ENGINE · UNIFIED FIELD THEORY                   ║
+    // ║  Protocolo: UFT-1.0 · Perfil Híbrido · Library interna + GeoJSON ext.  ║
+    // ╠══════════════════════════════════════════════════════════════════════════╣
+    // ║  @domain    Viário Municipal — Sistemas Viários do Amazonas (62 mun.)   ║
+    // ║  @author    Paulo Esteves Fernandes Neto — Chefe DMOB/SEINFRA-AM        ║
+    // ║  @version   1.0.0-ake                                                   ║
+    // ║  @build     GENESIS_RETROFIT                                            ║
+    // ║  @created   2026-03-24                                                  ║
+    // ║  @repo      github.com/leonzordhue/dmob-viario                          ║
+    // ║                                                                          ║
+    // ║  CLASSIFICAÇÃO AKE:                                                      ║
+    // ║    Perfil:        Híbrido (Library interna: 62 mun. IBGE | GeoJSON ext.)║
+    // ║    Camada 1 (Library):   DADOS_MUNICIPIOS embutido (soberano) +          ║
+    // ║                          GeoJSONs de ruas/polígonos via GitHub (externo) ║
+    // ║    Camada 2 (Logic):     pointInPolygon(), getRuasMunicipio(),           ║
+    // ║                          criarPoligonoBbox(), normNome()                 ║
+    // ║    Camada 4 (Log):       AKE_BUILD_LOG ativo                            ║
+    // ║    Camada 6 (UI):        Leaflet + IBGE malhas + select + detalhes      ║
+    // ║                                                                          ║
+    // ║  ⚠ NOTA AKE-SOV: Parcialmente soberano. Indicadores municipais são      ║
+    // ║  embutidos (offline). Geometrias dependem do GitHub + API IBGE.          ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+
+    // ============================================================================
+    // CAMADA 4 — LOG ENGINE
+    // ============================================================================
+    var AKE_BUILD_LOG = [{
+      build: "1.0.0-ake",
+      data: "2026-03-24T10:30:00-04:00",
+      autor: "Paulo Esteves Fernandes Neto",
+      ia_assistente: "Claude Opus 4.6",
+      tipo: "GENESIS_RETROFIT",
+      descricao: "Retrofit AKE no index_viário.html. Perfil Híbrido — dados IBGE embutidos + GeoJSONs externos.",
+      estado_pre_retrofit: { linhas: 793, dados: "62 municípios IBGE embutidos + 3 GeoJSONs GitHub + API IBGE malhas" },
+      axiomas_identificados: [
+        "DADOS_MUNICIPIOS{} — Library soberana: 62 municípios com pop, área, PIB, IDH, extensão viária",
+        "normNome() — Normalização de topônimos (NFD + strip diacríticos + uppercase)",
+        "pointInPolygon() — Ray casting para teste ponto-em-polígono",
+        "getOuterRing() — Extração de anel externo de geometrias Multi/Polygon",
+        "getRuasMunicipio() — Filtragem de features viárias por polígono municipal",
+        "criarPoligonoBbox() — Geração de bounding box como polígono fallback"
+      ],
+      tentativas_falhas: [],
+      erros_corrigidos: []
+    }];
+
+    // ============================================================================
+    // CAMADA 1 — THE LIBRARY (Conhecimento Estático — Soberano)
+    // ============================================================================
+
+    /**
+     * @meta Indicadores municipais do Amazonas — Library soberana
+     * @source IBGE — Censo 2022, PIB dos Municípios, Atlas IDH
+     *         Extensão viária: levantamento DMOB/SEINFRA-AM
+     * @fields nome: Designação oficial | ibge: Código IBGE 7 dígitos |
+     *         pop: População (Censo 2022) | area: Área territorial km² |
+     *         dens: Densidade demográfica hab/km² | ext: Extensão viária km |
+     *         pib: PIB municipal | idh: IDH-M (Atlas Brasil)
+     * @coverage 62 municípios do Amazonas (exceto Manaus para alguns indicadores)
+     * @responsible Paulo E. F. Neto — DMOB/SEINFRA-AM
+     * @sovereignty SOBERANO — dados embutidos, zero dependência externa
+     * @ake_rule AKE-LIB-001
+     */
+    // ========== CONFIG ==========
+    // Dados dos 62 municípios embarcados diretamente — sem dependência de API
+    // Gerado automaticamente a partir da planilha indicadores_municipais
+    const DADOS_MUNICIPIOS = {"BARCELOS":{"nome":"BARCELOS","ibge":"1300409","pop":"18834","area":"122475.73","dens":"0.15","ext":"31.574","pib":"R$ 245.6 M","idh":"0.5"},"SANTA ISABEL DO RIO NEGRO":{"nome":"SANTA ISABEL DO RIO NEGRO","ibge":"1303601","pop":"14164","area":"62800.15","dens":"0.23","ext":"48.769","pib":"R$ 185.8 M","idh":"0.555"},"SAO GABRIEL DA CACHOEIRA":{"nome":"SÃO GABRIEL DA CACHOEIRA","ibge":"1303809","pop":"51795","area":"109185.69","dens":"0.47","ext":"71.683","pib":"R$ 423.1 M","idh":"0.663"},"BENJAMIN CONSTANT":{"nome":"BENJAMIN CONSTANT","ibge":"1300607","pop":"37648","area":"8793.42","dens":"4.28","ext":"63.201","pib":"R$ 388.8 M","idh":"0.574"},"SANTO ANTONIO DO ICA":{"nome":"SANTO ANTÔNIO DO IÇÁ","ibge":"1303700","pop":"28211","area":"12977.46","dens":"2.17","ext":"43.92","pib":"R$ 237.3 M","idh":"0.571"},"SAO PAULO DE OLIVENCA":{"nome":"SÃO PAULO DE OLIVENÇA","ibge":"1303908","pop":"32967","area":"15281.33","dens":"2.16","ext":"38.931","pib":"R$ 334.1 M","idh":"0.59"},"TONANTINS":{"nome":"TONANTINS","ibge":"1304237","pop":"19247","area":"6432.68","dens":"2.99","ext":"35.846","pib":"R$ 185.4 M","idh":"0.571"},"TABATINGA":{"nome":"Tabatinga","ibge":"1304062","pop":"66764","area":"3224.89","dens":"20.7","ext":"126.921","pib":"R$ 758.035","idh":"0.616"},"AMATURA":{"nome":"AMATURÁ","ibge":"1300060","pop":"10819","area":"4758.72","dens":"2.27","ext":"27.028","pib":"R$ 118.9 M","idh":"0.565"},"ATALAIA DO NORTE":{"nome":"Atalaia do Norte","ibge":"1300201","pop":"15314","area":"76355.6","dens":"0.2","ext":"26.181","pib":"R$ 184.9 M","idh":"0.542"},"BARREIRINHA":{"nome":"BARREIRINHA","ibge":"1300508","pop":"31051","area":"5750.57","dens":"5.4","ext":"27.606","pib":"R$ 344.9 M","idh":"0.556"},"BOA VISTA DO RAMOS":{"nome":"BOA VISTA DO RAMOS","ibge":"1300680","pop":"23785","area":"2586.84","dens":"9.19","ext":"70.01","pib":"R$ 182.4 M","idh":"0.594"},"NHAMUNDA":{"nome":"NHAMUNDÁ","ibge":"1303007","pop":"20136","area":"14105.91","dens":"1.43","ext":"12.631","pib":"R$ 207.0 M","idh":"0.586"},"PARINTINS":{"nome":"PARINTINS","ibge":"1303403","pop":"96372","area":"5952.33","dens":"16.19","ext":"199.189","pib":"R$ 1.4 M","idh":"0.658"},"SAO SEBASTIAO DO UATUMA":{"nome":"SÃO SEBASTIÃO DO UATUMÃ","ibge":"1303957","pop":"11670","area":"10741.06","dens":"1.09","ext":"37.801","pib":"R$ 136.6 M","idh":"0.585"},"URUCARA":{"nome":"URUCARÁ","ibge":"1304302","pop":"18631","area":"27906.7","dens":"0.67","ext":"57.585","pib":"R$ 205.7 M","idh":"0.588"},"CARAUARI":{"nome":"CARAUARI","ibge":"1301001","pop":"28742","area":"25778.67","dens":"1.11","ext":"70.694","pib":"R$ 370.7 M","idh":"0.593"},"EIRUNEPE":{"nome":"EIRUNEPÉ","ibge":"1301407","pop":"33170","area":"15970.64","dens":"2.08","ext":"68.575","pib":"R$ 568.036","idh":"0.624"},"ENVIRA":{"nome":"ENVIRA","ibge":"1301506","pop":"17186","area":"7516.79","dens":"2.29","ext":"64.579","pib":"R$ 215.5 M","idh":"0.56"},"GUAJARA":{"nome":"GUAJARÁ","ibge":"1301654","pop":"13815","area":"7584.6","dens":"1.82","ext":"30.83","pib":"R$ 177.3 M","idh":"0.569"},"IPIXUNA":{"nome":"IPIXUNA","ibge":"1301803","pop":"24311","area":"13194.05","dens":"1.84","ext":"33.004","pib":"R$ 216.5 M","idh":"0.555"},"ITAMARATI":{"nome":"ITAMARATI","ibge":"1301951","pop":"10937","area":"25275.97","dens":"0.43","ext":"15.676","pib":"R$ 135.6 M","idh":"0.554"},"BORBA":{"nome":"BORBA","ibge":"1300805","pop":"33080","area":"44251.72","dens":"0.75","ext":"44.14","pib":"R$ 402.1 M","idh":"0.575"},"HUMAITA":{"nome":"HUMAITÁ","ibge":"1301704","pop":"57473","area":"33111.14","dens":"1.74","ext":"146.114","pib":"R$ 860.168","idh":"0.605"},"MANICORE":{"nome":"MANICORÉ","ibge":"1302702","pop":"53914","area":"48631.33","dens":"1.11","ext":"93.9","pib":"R$ 686.279","idh":"0.567"},"NOVO ARIPUANA":{"nome":"NOVO ARIPUANÃ","ibge":"1303304","pop":"23818","area":"41187.96","dens":"0.58","ext":"47.143","pib":"R$ 252.4 M","idh":"0.567"},"APUI":{"nome":"APUÍ","ibge":"1300144","pop":"20647","area":"54240.55","dens":"0.38","ext":"98.525","pib":"R$ 297.8 M","idh":"0.637"},"ITACOATIARA":{"nome":"ITACOATIARA","ibge":"1301902","pop":"103598","area":"8891.9","dens":"11.65","ext":"164.826","pib":"R$ 2.4 M","idh":"0.644"},"ITAPIRANGA":{"nome":"ITAPIRANGA","ibge":"1302009","pop":"10162","area":"4231.14","dens":"2.4","ext":"45.61","pib":"R$ 152.5 M","idh":"0.622"},"MAUES":{"nome":"MAUÉS","ibge":"1302900","pop":"61204","area":"39991.07","dens":"1.53","ext":"74.231","pib":"R$ 595.826","idh":"0.593"},"NOVA OLINDA DO NORTE":{"nome":"NOVA OLINDA DO NORTE","ibge":"1303106","pop":"27062","area":"5609.62","dens":"4.82","ext":"58.686","pib":"R$ 341.7 M","idh":"0.602"},"PRESIDENTE FIGUEIREDO":{"nome":"PRESIDENTE FIGUEIREDO","ibge":"1303536","pop":"30668","area":"25422.28","dens":"1.21","ext":"68.915","pib":"R$ 1.0 M","idh":"0.647"},"SILVES":{"nome":"SILVES","ibge":"1304005","pop":"11559","area":"3748.83","dens":"3.08","ext":"22.469","pib":"R$ 175.0 M","idh":"0.613"},"URUCURITUBA":{"nome":"URUCURITUBA","ibge":"1304401","pop":"23945","area":"3051.54","dens":"7.85","ext":"53.555","pib":"R$ 232.7 M","idh":"0.598"},"BOCA DO ACRE":{"nome":"BOCA DO ACRE","ibge":"1300706","pop":"35447","area":"21952.86","dens":"1.61","ext":"64.648","pib":"R$ 512.796","idh":"0.588"},"CANUTAMA":{"nome":"CANUTAMA","ibge":"1300904","pop":"16869","area":"29787.94","dens":"0.57","ext":"23.282","pib":"R$ 154.3 M","idh":"0.587"},"LABREA":{"nome":"LÁBREA","ibge":"1302405","pop":"45448","area":"68262.68","dens":"0.67","ext":"95.608","pib":"R$ 625.198","idh":"0.553"},"PAUINI":{"nome":"PAUINI","ibge":"1303502","pop":"19373","area":"41610.41","dens":"0.47","ext":"28.743","pib":"R$ 199.5 M","idh":"0.588"},"TAPAUA":{"nome":"TAPAUÁ","ibge":"1304104","pop":"19599","area":"8946.98","dens":"2.19","ext":"15.993","pib":"R$ 239.9 M","idh":"0.572"},"BERURI":{"nome":"BERURI","ibge":"1300631","pop":"20718","area":"17152.59","dens":"1.21","ext":"31.926","pib":"R$ 211.9 M","idh":"0.593"},"CAAPIRANGA":{"nome":"CAAPIRANGA","ibge":"1300839","pop":"13469","area":"9541.38","dens":"1.41","ext":"38.079","pib":"R$ 177.9 M","idh":"0.587"},"CAREIRO":{"nome":"CAREIRO","ibge":"1301100","pop":"30792","area":"6091.55","dens":"5.05","ext":"32.217","pib":"R$ 395.2 M","idh":"0.571"},"CAREIRO DA VARZEA":{"nome":"CAREIRO DA VÁRZEA","ibge":"1301159","pop":"19637","area":"2631.14","dens":"7.46","ext":"24.31","pib":"R$ 413.4 M","idh":"0.55"},"COARI":{"nome":"COARI","ibge":"1301209","pop":"70616","area":"57920.36","dens":"1.22","ext":"120.202","pib":"R$ 3.4 M","idh":"0.586"},"CODAJAS":{"nome":"CODAJÁS","ibge":"1301308","pop":"23549","area":"18711.44","dens":"1.26","ext":"40.324","pib":"R$ 531.995","idh":"0.558"},"IRANDUBA":{"nome":"IRANDUBA","ibge":"1301852","pop":"61163","area":"2212.27","dens":"27.65","ext":"45.027","pib":"R$ 1.0 M","idh":"0.646"},"MANACAPURU":{"nome":"MANACAPURU","ibge":"1302504","pop":"101883","area":"7330.07","dens":"13.9","ext":"83.077","pib":"R$ 1.5 M","idh":"0.614"},"MANAQUIRI":{"nome":"MANAQUIRI","ibge":"1302553","pop":"17107","area":"3974.65","dens":"4.3","ext":"18.614","pib":"R$ 311.3 M","idh":"0.602"},"NOVO AIRAO":{"nome":"NOVO AIRÃO","ibge":"1303205","pop":"15761","area":"37771.06","dens":"0.42","ext":"55.156","pib":"R$ 186.5 M","idh":"0.621"},"RIO PRETO DA EVA":{"nome":"RIO PRETO DA EVA","ibge":"1303569","pop":"24936","area":"5894.39","dens":"4.23","ext":"109.712","pib":"R$ 407.1 M","idh":"0.622"},"ANAMA":{"nome":"ANAMÃ","ibge":"1300086","pop":"9962","area":"2454.54","dens":"4.06","ext":"10.893","pib":"R$ 138.6 M","idh":"0.594"},"ANORI":{"nome":"ANORI","ibge":"1300102","pop":"17194","area":"5796.78","dens":"2.97","ext":"35.619","pib":"R$ 248.4 M","idh":"0.594"},"AUTAZES":{"nome":"AUTAZES","ibge":"1300300","pop":"41564","area":"7599.28","dens":"5.47","ext":"88.673","pib":"R$ 506.341","idh":"0.592"},"FONTE BOA":{"nome":"FONTE BOA","ibge":"1301605","pop":"25871","area":"12459.27","dens":"2.08","ext":"61.157","pib":"R$ 222.8 M","idh":"0.55"},"JAPURA":{"nome":"JAPURÁ","ibge":"1302108","pop":"8858","area":"5550.37","dens":"1.6","ext":"18.003","pib":"R$ 85.8 M","idh":"0.542"},"JURUA":{"nome":"JURUÁ","ibge":"1302207","pop":"10742","area":"19585.28","dens":"0.55","ext":"25.336","pib":"R$ 138.1 M","idh":"0.575"},"JUTAI":{"nome":"JUTAÍ","ibge":"1302306","pop":"25172","area":"6953.58","dens":"3.62","ext":"40.412","pib":"R$ 266.4 M","idh":"0.566"},"MARAA":{"nome":"MARAÃ","ibge":"1302801","pop":"15529","area":"16910.37","dens":"0.92","ext":"19.745","pib":"R$ 176.2 M","idh":"0.566"},"TEFE":{"nome":"TEFÉ","ibge":"1304203","pop":"73669","area":"23692.22","dens":"3.11","ext":"84.479","pib":"R$ 1.1 M","idh":"0.639"},"UARINI":{"nome":"UARINI","ibge":"1304260","pop":"14431","area":"10246.03","dens":"1.41","ext":"38.976","pib":"R$ 229.2 M","idh":"0.573"},"ALVARAES":{"nome":"ALVARÃES","ibge":"1300029","pop":"15866","area":"5968.82","dens":"2.66","ext":"20.001","pib":"R$ 217.3 M","idh":"0.564"},"MANAUS":{"nome":"Manaus","ibge":"1302603","pop":"2063547","area":"11401.09","dens":"180.99","ext":"","pib":"R$ 79.40 bi","idh":"0.737"}};
+
+    // GeoJSON URLs no GitHub (raw)
+    const BASE_URL         = 'https://raw.githubusercontent.com/leonzordhue/dmob-viario/main/';
+    const GEOJSON_RUAS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS3.geojson';
+    const GEOJSON_POLS_URL = BASE_URL + 'SISTEMAS_VIARIOS_AMAZONAS2.geojson';
+
+    // Autazes: convex hull das ruas (funciona bem — área urbana representativa)
+    // Careiro + Careiro da Várzea: polígono real buscado da API IBGE no browser
+    // (códigos verificados por cruzamento de coordenadas das ruas com centroide IBGE)
+    const EXTRAS_POLIGONOS = {
+      'Autazes': [[-59.145266,-3.58542],[-59.13223,-3.633172],[-59.131971,-3.633706],[-59.131295,-3.634824],[-59.104517,-3.669858],[-59.098975,-3.676587],[-59.098547,-3.677091],[-59.097837,-3.677422],[-59.096781,-3.677892],[-59.096072,-3.678034],[-59.092397,-3.677086],[-59.109482,-3.577255],[-59.111719,-3.574719],[-59.114958,-3.571072],[-59.118791,-3.570984],[-59.125926,-3.572754],[-59.130431,-3.574491],[-59.135376,-3.578091],[-59.145266,-3.58542]]
+    };
+    const EXTRAS = [
+      { nome: 'Autazes',           url: BASE_URL + 'Autazes.geojson',          ibgeCod: null },
+      { nome: 'Careiro',           url: BASE_URL + 'Careiro.geojson',           ibgeCod: '1301100' },
+      { nome: 'Careiro da Várzea', url: BASE_URL + 'Careiro_da_Varzea.geojson', ibgeCod: '1301159' },
+    ];
+    const IBGE_MALHAS = 'https://servicodados.ibge.gov.br/api/v3/malhas/municipios/';
+
+    // ========== STATE ==========
+    let dadosMunicipios  = {};
+    let geoJsonRuas      = null;
+    let geoJsonPoligonos = null;
+    let leafletMap       = null;
+    let tracadoLayer     = null;
+    let poligonoLayer    = null;
+    let mapaAM           = null;
+    let poligonosAMLayer = null;
+    let municipioAtivo   = null;
+
+    // ========== INIT — coordenado, sem race condition ==========
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('loadingBar').classList.add('show');
+      try {
+        // carregarPlanilha é síncrono (dados embarcados) — carregarGeoJsons é async (GitHub)
+        await carregarPlanilha();
+        await carregarGeoJsons();
+      } catch(e) {
+        console.error('Erro na inicialização:', e);
+      }
+      document.getElementById('loadingBar').classList.remove('show');
+      preencherSelect();
+      iniciarMapaAM();
+    });
+
+    // ========== PLANILHA — CSV export sem API key ==========
+    // Normaliza nome para lookup (sem acento, uppercase)
+    const normNome = s => String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+
+    // Carrega dados embarcados — sem latência de rede, 100% offline
+    async function carregarPlanilha() {
+      Object.entries(DADOS_MUNICIPIOS).forEach(([chave, d]) => {
+        dadosMunicipios[chave] = {
+          nomeOriginal: d.nome,
+          ibge:       d.ibge  || '',
+          populacao:  d.pop   || '',
+          territorio: d.area  || '',
+          densidade:  d.dens  || '',
+          extensao:   d.ext   || '',
+          pib:        d.pib   || '',
+          idh:        d.idh   || '',
+        };
+      });
+      console.log(`✅ Dados: ${Object.keys(dadosMunicipios).length} municípios carregados (embarcados)`);
+    }
+
+    // ========== GEOJSON ==========
+    async function carregarGeoJsons() {
+      try {
+        const [r1, r2] = await Promise.all([fetch(GEOJSON_RUAS_URL), fetch(GEOJSON_POLS_URL)]);
+        if (r1.ok) { geoJsonRuas = await r1.json(); console.log(`✅ Ruas: ${geoJsonRuas.features.length}`); }
+        else console.warn('⚠️ Ruas GeoJSON falhou');
+        if (r2.ok) { geoJsonPoligonos = await r2.json(); console.log(`✅ Polígonos: ${geoJsonPoligonos.features.length}`); }
+        else console.warn('⚠️ Polígonos GeoJSON falhou');
+
+        for (const extra of EXTRAS) {
+          try {
+            const r = await fetch(extra.url);
+            if (!r.ok) { console.warn(`⚠️ Ruas extra não carregadas: ${extra.nome}`); continue; }
+            const data = await r.json();
+
+            let polygon = null;
+
+            // Careiro e Careiro da Várzea: busca polígono real na API IBGE (browser tem acesso)
+            if (extra.ibgeCod) {
+              try {
+                const urlIbge = `${IBGE_MALHAS}${extra.ibgeCod}?formato=application/vnd.geo+json&qualidade=minima`;
+                const ri = await fetch(urlIbge);
+                if (ri.ok) {
+                  const ib = await ri.json();
+                  if (ib.features?.[0]) {
+                    polygon = { ...ib.features[0], properties: { name: extra.nome } };
+                    console.log(`✅ IBGE polígono: ${extra.nome} (${ib.features[0].geometry.type})`);
+                  }
+                }
+              } catch(e) { console.warn(`⚠️ IBGE falhou para ${extra.nome}, usando bbox:`, e.message); }
+            }
+
+            // Fallback: convex hull pré-calculado (Autazes) ou bbox (se IBGE falhar)
+            if (!polygon) {
+              const ring = EXTRAS_POLIGONOS[extra.nome];
+              if (ring) {
+                polygon = { type: 'Feature', properties: { name: extra.nome },
+                  geometry: { type: 'Polygon', coordinates: [ring] } };
+                console.log(`✅ Convex hull: ${extra.nome}`);
+              } else {
+                polygon = criarPoligonoBbox(extra.nome, data.features);
+                console.log(`⚠️ Bbox fallback: ${extra.nome}`);
+              }
+            }
+
+            geoJsonPoligonos?.features.push(polygon);
+            geoJsonRuas?.features.push(...data.features);
+            console.log(`✅ Extra: ${extra.nome} — ${data.features.length} ruas`);
+          } catch(e) { console.warn(`⚠️ Erro extra ${extra.nome}:`, e.message); }
+        }
+      } catch(e) {
+        console.warn('⚠️ Erro GeoJSON:', e.message);
+      }
+    }
+
+    function criarPoligonoBbox(nome, features, mg=0.01) {
+      const coords = features.flatMap(f=>f.geometry.coordinates);
+      const xs=coords.map(c=>c[0]), ys=coords.map(c=>c[1]);
+      const [x0,x1,y0,y1] = [Math.min(...xs)-mg,Math.max(...xs)+mg,Math.min(...ys)-mg,Math.max(...ys)+mg];
+      return { type:'Feature', properties:{name:nome}, geometry:{type:'Polygon',coordinates:[[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]]]} };
+    }
+
+    // ========== SELECT + MAPA AM ==========
+    function preencherSelect() {
+      const geo = geoJsonPoligonos ? geoJsonPoligonos.features.map(f=>f.properties.name).filter(Boolean) : [];
+      const todos = [...new Set([...geo, ...Object.keys(dadosMunicipios)])].sort();
+      const sel = document.getElementById('selectMunicipio');
+      sel.innerHTML = '<option value="">Ou busque pelo nome...</option>';
+      todos.forEach(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+      sel.addEventListener('change', e => { if(e.target.value) selecionarMunicipio(e.target.value); });
+      console.log(`✅ Select: ${todos.length} municípios`);
+    }
+
+    function iniciarMapaAM() {
+      if (!geoJsonPoligonos) { console.warn('⚠️ Sem polígonos para o mapa AM'); return; }
+      if (mapaAM) return;  // guard absoluto — nunca dupla inicialização
+
+      mapaAM = L.map('mapa-am', { center:[-4.5,-63.5], zoom:5, zoomControl:true, attributionControl:false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18, opacity:0.4 }).addTo(mapaAM);
+
+      poligonosAMLayer = L.geoJSON(geoJsonPoligonos, {
+        style: estiloPadrao,
+        onEachFeature: (feature, layer) => {
+          const nome = feature.properties.name||'';
+          if (!nome) return;
+          layer.on('mouseover', function() {
+            if (municipioAtivo!==nome) this.setStyle({fillColor:'#1A2B5E',fillOpacity:0.25,weight:2,color:'#1A2B5E'});
+            this.bindTooltip(`<div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:0.82rem;color:#1A2B5E;">${nome}</div>`,
+              {sticky:true,className:'municipio-tooltip'}).openTooltip();
+          });
+          layer.on('mouseout', function() { if(municipioAtivo!==nome) poligonosAMLayer.resetStyle(this); });
+          layer.on('click',    function() { selecionarMunicipio(nome); });
+        }
+      }).addTo(mapaAM);
+
+      document.getElementById('mapaAmOverlay').classList.add('hidden');
+      console.log('✅ Mapa AM inicializado');
+    }
+
+    const estiloPadrao = () => ({ color:'#1A2B5E', weight:1.5, opacity:0.7, fillColor:'#EBF0FA', fillOpacity:0.5 });
+    const estiloAtivo  = () => ({ color:'#1A2B5E', weight:2.5, opacity:1,   fillColor:'#F5A623', fillOpacity:0.4 });
+
+    function selecionarMunicipio(nome) {
+      if (poligonosAMLayer) {
+        poligonosAMLayer.eachLayer(l => {
+          l.setStyle(l.feature?.properties?.name===nome ? estiloAtivo() : estiloPadrao());
+        });
+        municipioAtivo = nome;
+      }
+      document.getElementById('selectMunicipio').value = nome;
+      mostrarMunicipio(nome);
+    }
+
+    // ========== SPATIAL ==========
+    function pointInPolygon(point, ring) {
+      const [x,y] = point; let inside=false, j=ring.length-1;
+      for (let i=0;i<ring.length;i++) {
+        const [xi,yi]=ring[i],[xj,yj]=ring[j];
+        if (((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+        j=i;
+      }
+      return inside;
+    }
+
+    function getOuterRing(feature) {
+      const g = feature.geometry;
+      if (!g) return null;
+      if (g.type==='Polygon') return g.coordinates[0];
+      if (g.type==='MultiPolygon') {
+        // Pega o polígono de maior bbox
+        return g.coordinates.reduce((best,poly) => {
+          const r=poly[0];
+          const xs=r.map(c=>c[0]),ys=r.map(c=>c[1]);
+          const a=(Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys));
+          const bxs=best.map(c=>c[0]),bys=best.map(c=>c[1]);
+          const ba=(Math.max(...bxs)-Math.min(...bxs))*(Math.max(...bys)-Math.min(...bys));
+          return a>ba?r:best;
+        }, g.coordinates[0][0]);
+      }
+      return null;
+    }
+
+    function getRuasMunicipio(nomeMunicipio) {
+      if (!geoJsonRuas||!geoJsonPoligonos) return [];
+      const polF = geoJsonPoligonos.features.find(f =>
+        (f.properties.name||'').trim().toLowerCase()===nomeMunicipio.trim().toLowerCase()
+      );
+      if (!polF) return [];
+      const ring = getOuterRing(polF);
+      if (!ring) return [];
+      const xs=ring.map(c=>c[0]),ys=ring.map(c=>c[1]);
+      const [x0,x1,y0,y1]=[Math.min(...xs),Math.max(...xs),Math.min(...ys),Math.max(...ys)];
+      return geoJsonRuas.features.filter(rua=>{
+        const coords=rua.geometry?.coordinates;
+        if (!coords?.length) return false;
+        const [px,py]=coords[Math.floor(coords.length/2)];
+        if (px<x0||px>x1||py<y0||py>y1) return false;
+        return pointInPolygon([px,py],ring);
+      });
+    }
+
+    // ========== EXIBIR MUNICÍPIO ==========
+    function mostrarMunicipio(nome) {
+      // Lookup normalizado — planilha usa MAIÚSCULAS, GeoJSON usa Caixa Mista
+      const dados = dadosMunicipios[normNome(nome)] || {};
+
+      const ruas = getRuasMunicipio(nome);
+      let extM = 0;
+      ruas.forEach(r=>{const m=(r.properties.description||'').match(/([\d.,]+)\s*m/i);if(m)extM+=parseFloat(m[1].replace(',','.'));});
+      const extKm = (extM/1000).toFixed(2);
+
+      document.getElementById('resultadoTitulo').textContent = nome;
+      document.getElementById('munNome').textContent = nome;
+      document.getElementById('munIbge').textContent = dados.ibge ? `Código IBGE: ${dados.ibge}` : 'Código IBGE: não informado';
+
+      const nd = (v,s='') => (v && v !== '0' && v !== '') ? `${v}${s}` : '<span class="nd">—</span>';
+      const fmtPop = v => v ? parseInt(v).toLocaleString('pt-BR') : '';
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-box"><div class="stat-box-value">${ruas.length}</div><div class="stat-box-label">Ruas Mapeadas</div></div>
+        <div class="stat-box"><div class="stat-box-value">${extKm}</div><div class="stat-box-label">Extensão Total (km)</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.territorio,' km²')}</div><div class="stat-box-label">Território Municipal</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(fmtPop(dados.populacao))}</div><div class="stat-box-label">Habitantes</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.densidade,' hab/km²')}</div><div class="stat-box-label">Densidade Demográfica</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.idh)}</div><div class="stat-box-label">IDH</div></div>
+        <div class="stat-box"><div class="stat-box-value sm">${nd(dados.pib)}</div><div class="stat-box-label">PIB Municipal</div></div>
+      `;
+
+      document.getElementById('buscaRua').value = '';
+      const ord = [...ruas].sort((a,b)=>(a.properties.name||'').localeCompare(b.properties.name||''));
+      document.getElementById('ruasTbody').innerHTML = ord.map((r,i)=>{
+        const n=r.properties.name||'Sem nome';
+        const m=(r.properties.description||'').match(/([\d.,]+)\s*m/i);
+        const e=m?`${parseFloat(m[1].replace(',','.')).toFixed(0)} m`:'—';
+        return `<tr data-nome="${n.toLowerCase()}"><td style="color:var(--cinza-aux);font-weight:400;">${i+1}</td><td>${n}</td><td><span class="badge-ext">${e}</span></td></tr>`;
+      }).join('');
+      document.getElementById('tableCountNum').textContent = ord.length;
+      document.getElementById('mapBadgeRuas').textContent = `${ruas.length} ruas`;
+      document.getElementById('mapBadgeExt').textContent  = `${extKm} km`;
+      renderizarMapa(nome, ruas);
+
+      const card = document.getElementById('resultadoCard');
+      card.classList.add('show');
+      card.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    // ========== MAPA VIÁRIO ==========
+    function renderizarMapa(nomeMunicipio, ruas) {
+      document.getElementById('mapLoadingOverlay').classList.remove('hidden');
+      if (leafletMap) { leafletMap.remove(); leafletMap=null; tracadoLayer=null; poligonoLayer=null; }
+
+      setTimeout(()=>{
+        leafletMap = L.map('leaflet-map',{center:[-3.5,-62],zoom:7,zoomControl:true,attributionControl:false});
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(leafletMap);
+
+        const polF = geoJsonPoligonos?.features.find(f=>(f.properties.name||'').trim().toLowerCase()===nomeMunicipio.trim().toLowerCase());
+        if (polF) {
+          poligonoLayer = L.geoJSON(polF,{style:{color:'#1A2B5E',weight:2,opacity:0.6,fillColor:'#1A2B5E',fillOpacity:0.04}}).addTo(leafletMap);
+        }
+
+        if (ruas.length>0) {
+          tracadoLayer = L.geoJSON({type:'FeatureCollection',features:ruas},{
+            style:{color:'#F5A623',weight:3,opacity:0.9,lineJoin:'round',lineCap:'round'},
+            onEachFeature:(feature,layer)=>{
+              const n=feature.properties.name||'Sem nome', d=feature.properties.description||'';
+              layer.bindPopup(`<div style="font-family:'Outfit',sans-serif;font-size:0.82rem;"><div style="font-weight:800;color:#1A2B5E;margin-bottom:4px;">${n}</div><div style="color:#4A5568;">${d}</div></div>`,{maxWidth:220});
+            }
+          }).addTo(leafletMap);
+          leafletMap.fitBounds(tracadoLayer.getBounds(),{padding:[30,30]});
+        } else if (poligonoLayer) {
+          leafletMap.fitBounds(poligonoLayer.getBounds(),{padding:[30,30]});
+        }
+        document.getElementById('mapLoadingOverlay').classList.add('hidden');
+      },80);
+    }
+
+    function filtrarRuas(termo) {
+      const t=termo.toLowerCase().trim(); let v=0;
+      document.querySelectorAll('#ruasTbody tr').forEach(row=>{
+        const show=!t||(row.getAttribute('data-nome')||'').includes(t);
+        row.classList.toggle('hidden-row',!show);
+        if(show)v++;
+      });
+      document.getElementById('tableCountNum').textContent=v;
+    }
+
+    function centralizarMapa() {
+      if (!leafletMap) return;
+      if (tracadoLayer) leafletMap.fitBounds(tracadoLayer.getBounds(),{padding:[30,30]});
+      else if (poligonoLayer) leafletMap.fitBounds(poligonoLayer.getBounds(),{padding:[30,30]});
+    }
+  
+    // AKE UFT-1.0 Build Log Identidade 2026
+    window._VERSION_LOG = window._VERSION_LOG || [];
+    window._VERSION_LOG.push({ rev:"v2.0", data:"2026-05-25", descricao:"Identidade Visual 2026: Lexend/Barlow, navy #1A2B5E, header Gov AM, footer institucional" });
+    window._VICIOS_CONHECIDOS = window._VICIOS_CONHECIDOS || [];
+
+  </script>
+
+</body>
+</html>
